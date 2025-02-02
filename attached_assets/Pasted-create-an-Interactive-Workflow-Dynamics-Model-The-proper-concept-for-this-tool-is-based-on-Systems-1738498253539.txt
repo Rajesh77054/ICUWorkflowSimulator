@@ -1,0 +1,59 @@
+create an Interactive Workflow Dynamics Model. The proper concept for this tool is based on "Systems Dynamics Modeling" or "Workflow Simulation Modeling." These approaches allow for real-time input of variables and output of projected impacts on workflow efficiency.
+
+Key Features of the Input/Output Tool
+Input Variables
+The tool should allow users to input and update key factors that influence ICU workflow, such as:
+
+Interruptions
+Nursing questions (per hour)
+Exam callbacks (per hour)
+Peer interruptions (per hour)
+Admissions/Transfers
+New admissions (per shift)
+Floor consults (per shift)
+Transfer center calls (per shift)
+Critical Events
+Frequency of unstable patients (per week)
+Time consumption per event (hours)
+Provider Availability
+Number of providers (e.g., 2 in the closed model vs. 5 in the hybrid model)
+Time allocated to specific tasks (e.g., charting, rounds, exams).
+Output Metrics
+The tool should calculate and display the impact of the input variables on key workflow outcomes, such as:
+
+Total interruptions per provider
+Time lost to interruptions
+Time available for focus tasks (e.g., charting, exams)
+Delays in routine tasks (e.g., charting, patient updates)
+Provider workload and cognitive load
+Risk of workflow bottlenecks
+Projected provider burnout risk.
+Dynamic Visualization
+
+Use graphs, charts, or heatmaps to visualize the impact of changes in variables.
+For example:
+A bar graph showing the increase in interruptions per provider when moving from a hybrid to a closed model.
+A pie chart showing time allocation across tasks.
+A line graph showing delays in charting as interruptions increase.
+Scenario Modeling
+
+Allow users to simulate different scenarios, such as:
+Adding an extra provider to the closed model.
+Reducing the frequency of interruptions.
+Increasing the ICU capacity or patient census.
+The tool should output the projected impact of these changes on workflow efficiency.
+Suggested Framework for the Tool
+This tool can be built using the following frameworks or concepts:
+
+Queueing Theory
+
+Models the flow of tasks and interruptions as queues, analyzing how workload is distributed and where bottlenecks occur.
+Time-Motion Analysis
+
+Tracks time spent on various tasks and interruptions, providing insights into time lost to inefficiencies.
+Agent-Based Simulation
+
+Simulates the behavior of individual providers (agents) under different scenarios, showing how changes in workload or interruptions affect overall efficiency.
+Systems Dynamics Modeling
+
+Models the ICU as a system with interconnected variables, showing how changes in one factor (e.g., interruptions) affect others (e.g., charting delays, provider fatigue).
