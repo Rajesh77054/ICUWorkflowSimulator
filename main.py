@@ -19,6 +19,14 @@ def main():
     st.markdown("""
         This interactive tool helps analyze and visualize ICU dayshift workflow dynamics (8 AM - 8 PM),
         considering various factors that impact provider efficiency and patient care.
+
+        Time estimates:
+        - Nursing questions: 1-3 minutes
+        - Exam callbacks: 5-10 minutes
+        - Peer interruptions: 5-10 minutes
+        - Simple admissions: 60 minutes
+        - Complex admissions: 90 minutes
+        - Critical events: 90-120 minutes
     """)
 
     simulator = WorkflowSimulator()
@@ -54,6 +62,12 @@ def main():
     # Convert weekly critical events to daily average
     critical_events_per_day = critical_events / 7.0
 
+    # Calculate time impacts
+    interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
+        nursing_q, exam_callbacks, peer_interrupts,
+        admissions, consults, transfers, critical_events_per_day
+    )
+
     efficiency = simulator.simulate_provider_efficiency(
         nursing_q + exam_callbacks + peer_interrupts,
         providers,
@@ -86,7 +100,18 @@ def main():
     with metric_col4:
         st.metric("Burnout Risk", f"{burnout_risk:.1%}")
 
-    # Visualizations section remains unchanged
+    # Time impact breakdown
+    st.markdown("### Time Impact Analysis (minutes per shift)")
+    impact_col1, impact_col2, impact_col3 = st.columns(3)
+
+    with impact_col1:
+        st.metric("Interruption Time", f"{interrupt_time:.0f}")
+    with impact_col2:
+        st.metric("Admission/Transfer Time", f"{admission_time:.0f}")
+    with impact_col3:
+        st.metric("Critical Event Time", f"{critical_time:.0f}")
+
+    # Visualizations section
     st.markdown("### Workflow Analysis")
     viz_col1, viz_col2 = st.columns(2)
 
@@ -115,6 +140,10 @@ def main():
         st.warning("⚠️ High cognitive load detected. Consider workflow optimization or additional support staff.")
     if efficiency < 0.7:
         st.warning("⚠️ Low efficiency detected. Review interruption patterns and implement protected time for critical tasks.")
+
+    total_time = interrupt_time + admission_time + critical_time
+    if total_time > 720:  # 12 hours in minutes
+        st.error("⚠️ Total task time exceeds shift duration. Current workload may not be sustainable.")
 
 if __name__ == "__main__":
     main()

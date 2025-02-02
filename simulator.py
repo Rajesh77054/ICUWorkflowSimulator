@@ -2,12 +2,21 @@ import numpy as np
 
 class WorkflowSimulator:
     def __init__(self):
-        self.base_time_per_task = {
-            'charting': 20,  # minutes
-            'rounds': 15,
-            'exams': 30,
-            'critical_event': 120
+        # Time durations in minutes
+        self.interruption_times = {
+            'nursing_question': 2,  # average of 1-3 minutes
+            'exam_callback': 7.5,   # average of 5-10 minutes
+            'peer_interrupt': 7.5   # average of 5-10 minutes
         }
+
+        self.admission_times = {
+            'simple': 60,    # simple admission: 60 mins
+            'complex': 90,   # complex admission: 90 mins
+            'consult': 45,   # floor consult average time
+            'transfer': 30   # transfer call average time
+        }
+
+        self.critical_event_time = 105  # average of 90-120 minutes
 
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, shift_hours=12):
         base_efficiency = 1.0
@@ -28,12 +37,26 @@ class WorkflowSimulator:
         base_risk = min(1.0, interruption_factor + workload_factor + critical_factor)
         return base_risk
 
-    def project_delays(self, tasks_per_shift, providers, efficiency):
-        base_completion_time = sum(self.base_time_per_task.values())
-        actual_completion_time = base_completion_time / efficiency
+    def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, 
+                            admissions, consults, transfers, critical_events_per_day):
+        # Calculate total time spent on interruptions
+        interrupt_time = (
+            nursing_q * self.interruption_times['nursing_question'] +
+            exam_callbacks * self.interruption_times['exam_callback'] +
+            peer_interrupts * self.interruption_times['peer_interrupt']
+        )
 
-        delay = actual_completion_time - base_completion_time
-        return max(0, delay)
+        # Calculate time spent on admissions and transfers (assume 70% simple, 30% complex)
+        admission_time = (
+            admissions * (0.7 * self.admission_times['simple'] + 0.3 * self.admission_times['complex']) +
+            consults * self.admission_times['consult'] +
+            transfers * self.admission_times['transfer']
+        )
+
+        # Calculate time spent on critical events
+        critical_time = critical_events_per_day * self.critical_event_time
+
+        return interrupt_time, admission_time, critical_time
 
     def calculate_cognitive_load(self, interruptions, critical_events_per_day, admissions, workload):
         # Scale from 0-100

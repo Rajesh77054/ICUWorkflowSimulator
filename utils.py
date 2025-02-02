@@ -7,22 +7,46 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     # Calculate for 12-hour dayshift
     total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12  # per 12-hour dayshift
     per_provider = total_interrupts / providers
-    time_lost = total_interrupts * 5 / 60  # assuming 5 minutes per interruption
+
+    # Calculate time lost using simulator's time constants
+    simulator = WorkflowSimulator()
+    time_lost = (
+        nursing_q * simulator.interruption_times['nursing_question'] + 
+        exam_callbacks * simulator.interruption_times['exam_callback'] + 
+        peer_interrupts * simulator.interruption_times['peer_interrupt']
+    ) * 12 / 60  # Convert to hours
+
     return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers):
-    total_tasks = admissions * 1.5 + consults * 0.75 + transfers * 0.5 + critical_events * 2
-    workload_per_provider = total_tasks / providers
+    simulator = WorkflowSimulator()
+
+    # Calculate total time required for all tasks
+    admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
+                                 0.3 * simulator.admission_times['complex'])
+    consult_time = consults * simulator.admission_times['consult']
+    transfer_time = transfers * simulator.admission_times['transfer']
+    critical_time = critical_events * simulator.critical_event_time
+
+    total_time = (admission_time + consult_time + transfer_time + critical_time) / 60  # Convert to hours
+    workload_per_provider = total_time / providers / 12  # Normalize to 12-hour shift
+
     return workload_per_provider
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts):
+    simulator = WorkflowSimulator()
+
     categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
-    values = [nursing_q, exam_callbacks, peer_interrupts]
-    
+    values = [
+        nursing_q * simulator.interruption_times['nursing_question'],
+        exam_callbacks * simulator.interruption_times['exam_callback'],
+        peer_interrupts * simulator.interruption_times['peer_interrupt']
+    ]
+
     fig = px.bar(
         x=categories,
         y=values,
-        title='Interruptions Distribution (per hour)',
+        title='Time Impact of Interruptions (minutes per hour)',
         color=values,
         color_continuous_scale='Blues'
     )
@@ -32,11 +56,11 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts):
 def create_time_allocation_pie(time_lost, available_hours=12):
     labels = ['Time Lost to Interruptions', 'Available Time']
     values = [time_lost, available_hours - time_lost]
-    
+
     fig = px.pie(
         values=values,
         names=labels,
-        title='Time Allocation per Shift',
+        title='Time Allocation per Shift (hours)',
         color_discrete_sequence=['#ff9999', '#66b3ff']
     )
     return fig
