@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from simulator import WorkflowSimulator
 
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
     # Calculate for 12-hour dayshift
