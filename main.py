@@ -17,7 +17,7 @@ def main():
     
     st.title("ICU Workflow Dynamics Model")
     st.markdown("""
-        This interactive tool helps analyze and visualize ICU workflow dynamics,
+        This interactive tool helps analyze and visualize ICU dayshift workflow dynamics (8 AM - 8 PM),
         considering various factors that impact provider efficiency and patient care.
     """)
     
@@ -27,19 +27,19 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        section_header("Interruptions", "Enter frequency of different types of interruptions")
+        section_header("Interruptions", "Enter frequency of different types of interruptions during dayshift")
         nursing_q = st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 5.0, 0.5)
         exam_callbacks = st.number_input("Exam Callbacks (per hour)", 0.0, 20.0, 3.0, 0.5)
         peer_interrupts = st.number_input("Peer Interruptions (per hour)", 0.0, 20.0, 2.0, 0.5)
         
-        section_header("Provider Information", "Enter staffing details")
+        section_header("Provider Information", "Enter dayshift staffing details")
         providers = st.number_input("Number of Providers", 1, 10, 2)
         
     with col2:
-        section_header("Admissions & Transfers", "Enter patient flow information")
-        admissions = st.number_input("New Admissions (per shift)", 0, 20, 3)
-        consults = st.number_input("Floor Consults (per shift)", 0, 20, 4)
-        transfers = st.number_input("Transfer Center Calls (per shift)", 0, 20, 2)
+        section_header("Admissions & Transfers", "Enter patient flow information for dayshift")
+        admissions = st.number_input("New Admissions (per dayshift)", 0, 20, 3)
+        consults = st.number_input("Floor Consults (per dayshift)", 0, 20, 4)
+        transfers = st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2)
         
         section_header("Critical Events", "Enter frequency of critical events")
         critical_events = st.number_input("Critical Events (per week)", 0, 50, 5)

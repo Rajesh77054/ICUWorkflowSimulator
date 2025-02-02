@@ -4,7 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
-    total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12  # per 12-hour shift
+    # Calculate for 12-hour dayshift
+    total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12  # per 12-hour dayshift
     per_provider = total_interrupts / providers
     time_lost = total_interrupts * 5 / 60  # assuming 5 minutes per interruption
     return per_provider, time_lost
@@ -41,10 +42,12 @@ def create_time_allocation_pie(time_lost, available_hours=12):
     return fig
 
 def create_workload_timeline(workload_baseline, providers):
-    hours = list(range(24))
-    # Simulate workload variation throughout the day
-    workload = workload_baseline * (1 + np.sin(np.array(hours) * np.pi / 12) * 0.3)
-    
+    # Create hours array from 8 to 20 (8 AM to 8 PM)
+    hours = list(range(8, 21))
+    # Simulate workload variation throughout the dayshift
+    # Peak during mid-day (around 2 PM)
+    workload = workload_baseline * (1 + np.sin((np.array(hours) - 8) * np.pi / 12) * 0.3)
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=hours,
@@ -53,10 +56,14 @@ def create_workload_timeline(workload_baseline, providers):
         name='Workload',
         line=dict(color='#0096c7')
     ))
-    
+
     fig.update_layout(
-        title='Projected Workload Timeline',
+        title='Projected Dayshift Workload (8 AM - 8 PM)',
         xaxis_title='Hour of Day',
-        yaxis_title='Relative Workload'
+        yaxis_title='Relative Workload',
+        xaxis=dict(
+            ticktext=['8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'],
+            tickvals=[8, 10, 12, 14, 16, 18, 20]
+        )
     )
     return fig
