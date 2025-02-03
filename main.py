@@ -83,7 +83,7 @@ def main():
     interrupts_per_provider, time_lost = calculate_interruptions(
         nursing_q, exam_callbacks, peer_interrupts, providers
     )
-    
+
     workload = calculate_workload(
         admissions, consults, transfers, 
         critical_events/7, providers, simulator
@@ -115,8 +115,7 @@ def main():
         interrupts_per_provider,
         critical_events_per_day,
         admissions,
-        workload,
-        simulator  # Pass the simulator instance
+        workload
     )
 
     # Display metrics
@@ -181,7 +180,7 @@ def main():
             create_time_allocation_pie(time_lost),
             use_container_width=True
         )
-    
+
     st.plotly_chart(
         create_workload_timeline(
             workload, providers, critical_events_per_day, simulator
