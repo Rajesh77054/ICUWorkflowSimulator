@@ -32,15 +32,51 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
 
     return workload_per_provider
 
+def calculate_cognitive_load(interruptions, critical_events_per_day, admissions, workload, simulator):
+    # Scale from 0-100
+    base_load = 30  # baseline cognitive load
+
+    # Factor in time impact of interruptions using actual duration settings
+    interrupt_factor = (
+        interruptions * 
+        sum(simulator.interruption_times.values()) / 
+        len(simulator.interruption_times)
+    ) / 60  # Convert to hours
+
+    # Factor in time impact of critical events using configured duration
+    critical_factor = critical_events_per_day * (simulator.critical_event_time / 60)  # normalized by hour
+
+    # Factor in admission complexity using configured durations
+    avg_admission_time = (simulator.admission_times['simple'] + simulator.admission_times['complex']) / 2
+    admission_factor = admissions * (avg_admission_time / 60)  # normalized by hour
+
+    # Additional load for high workload
+    workload_factor = max(0, (workload - 1.0) * 20)
+
+    # Scale factors to maintain reasonable cognitive load range
+    interrupt_scale = 5   # 5 points per hour of interruptions
+    critical_scale = 10   # 10 points per hour of critical events
+    admission_scale = 8   # 8 points per hour of admissions
+
+    total_load = (
+        base_load + 
+        (interrupt_factor * interrupt_scale) + 
+        (critical_factor * critical_scale) + 
+        (admission_factor * admission_scale) + 
+        workload_factor
+    )
+
+    return min(100, total_load)
+
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
-    # Calculate time impact per hour using simulator settings
+    # Calculate time impact per hour using current simulator settings
     nursing_time = nursing_q * simulator.interruption_times['nursing_question']
     exam_time = exam_callbacks * simulator.interruption_times['exam_callback']
     peer_time = peer_interrupts * simulator.interruption_times['peer_interrupt']
 
     categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
     values = [nursing_time, exam_time, peer_time]
-    
+
     # Include time per interruption for more detailed analysis
     hover_text = [
         f'Time per interruption: {simulator.interruption_times["nursing_question"]} min',
@@ -51,13 +87,15 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
     # Create a more detailed bar chart
     fig = go.Figure()
 
-    # Add bars
+    # Add bars with hover information
     fig.add_trace(go.Bar(
         x=categories,
         y=values,
         text=[f'{v:.1f} min/hr' for v in values],
         textposition='auto',
-        marker_color=['#66c2a5', '#fc8d62', '#8da0cb']
+        marker_color=['#66c2a5', '#fc8d62', '#8da0cb'],
+        hovertext=hover_text,
+        hoverinfo='text'
     ))
 
     fig.update_layout(

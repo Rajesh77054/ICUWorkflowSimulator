@@ -110,11 +110,13 @@ def main():
         critical_events_per_day
     )
 
+    # Update the cognitive load calculation to use simulator settings
     cognitive_load = simulator.calculate_cognitive_load(
         interrupts_per_provider,
         critical_events_per_day,
         admissions,
-        workload
+        workload,
+        simulator  # Pass the simulator instance
     )
 
     # Display metrics
@@ -122,24 +124,44 @@ def main():
     metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
     with metric_col1:
-        st.metric("Interruptions per Provider", f"{interrupts_per_provider:.1f}/shift")
+        st.metric(
+            "Interruptions per Provider",
+            f"{interrupts_per_provider:.1f}/shift",
+            help=f"Average interruption duration: {sum(simulator.interruption_times.values())/len(simulator.interruption_times):.1f} min"
+        )
     with metric_col2:
         st.metric("Hours Lost to Interruptions", f"{time_lost:.1f}")
     with metric_col3:
         st.metric("Provider Efficiency", f"{efficiency:.1%}")
     with metric_col4:
-        st.metric("Burnout Risk", f"{burnout_risk:.1%}")
+        st.metric(
+            "Cognitive Load",
+            f"{cognitive_load:.0f}/100",
+            help="Based on interruptions, critical events, and workload"
+        )
 
-    # Time impact breakdown
+    # Time impact breakdown with tooltips
     st.markdown("### Time Impact Analysis (minutes per shift)")
     impact_col1, impact_col2, impact_col3 = st.columns(3)
 
     with impact_col1:
-        st.metric("Interruption Time", f"{interrupt_time:.0f}")
+        st.metric(
+            "Interruption Time",
+            f"{interrupt_time:.0f}",
+            help="Total minutes spent handling interruptions per shift"
+        )
     with impact_col2:
-        st.metric("Admission/Transfer Time", f"{admission_time:.0f}")
+        st.metric(
+            "Admission/Transfer Time",
+            f"{admission_time:.0f}",
+            help=f"Simple admission: {simulator.admission_times['simple']} min\nComplex admission: {simulator.admission_times['complex']} min"
+        )
     with impact_col3:
-        st.metric("Critical Event Time", f"{critical_time:.0f}")
+        st.metric(
+            "Critical Event Time",
+            f"{critical_time:.0f}",
+            help=f"Based on {simulator.critical_event_time} minutes per critical event"
+        )
 
     # Update the visualization section to properly reflect critical events impact
     # Visualizations section
