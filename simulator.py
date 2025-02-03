@@ -70,15 +70,32 @@ class WorkflowSimulator:
     def calculate_cognitive_load(self, interruptions, critical_events_per_day, admissions, workload):
         # Scale from 0-100
         base_load = 30  # baseline cognitive load
-        # Factor in time impact of interruptions
+
+        # Factor in time impact of interruptions using actual duration settings
         avg_interrupt_time = sum(self.interruption_times.values()) / len(self.interruption_times)
-        interrupt_factor = interruptions * (avg_interrupt_time / 5)  # normalized by 5-minute baseline
-        # Factor in time impact of critical events
+        interrupt_factor = interruptions * (avg_interrupt_time / 60)  # Convert to hours
+
+        # Factor in time impact of critical events using configured duration
         critical_factor = critical_events_per_day * (self.critical_event_time / 60)  # normalized by hour
-        # Factor in admission complexity
+
+        # Factor in admission complexity using configured durations
         avg_admission_time = (self.admission_times['simple'] + self.admission_times['complex']) / 2
         admission_factor = admissions * (avg_admission_time / 60)  # normalized by hour
-        workload_factor = max(0, (workload - 1.0) * 20)  # Additional load for high workload
 
-        total_load = base_load + interrupt_factor + critical_factor + admission_factor + workload_factor
+        # Additional load for high workload
+        workload_factor = max(0, (workload - 1.0) * 20)
+
+        # Scale factors to maintain reasonable cognitive load range
+        interrupt_scale = 5   # 5 points per hour of interruptions
+        critical_scale = 10   # 10 points per hour of critical events
+        admission_scale = 8   # 8 points per hour of admissions
+
+        total_load = (
+            base_load + 
+            (interrupt_factor * interrupt_scale) + 
+            (critical_factor * critical_scale) + 
+            (admission_factor * admission_scale) + 
+            workload_factor
+        )
+
         return min(100, total_load)
