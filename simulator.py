@@ -2,21 +2,30 @@ import numpy as np
 
 class WorkflowSimulator:
     def __init__(self):
-        # Time durations in minutes
+        # Default time durations in minutes - these can be updated through the UI
         self.interruption_times = {
-            'nursing_question': 2,  # average of 1-3 minutes
-            'exam_callback': 7.5,   # average of 5-10 minutes
-            'peer_interrupt': 7.5   # average of 5-10 minutes
+            'nursing_question': 2,    # median of 1-3 minutes
+            'exam_callback': 7.5,     # median of 5-10 minutes
+            'peer_interrupt': 7.5     # median of 5-10 minutes
         }
 
         self.admission_times = {
-            'simple': 60,    # simple admission: 60 mins
-            'complex': 90,   # complex admission: 90 mins
-            'consult': 45,   # floor consult average time
-            'transfer': 30   # transfer call average time
+            'simple': 60,     # simple admission: 60 mins
+            'complex': 90,    # complex admission: 90 mins
+            'consult': 45,    # floor consult average time
+            'transfer': 30    # transfer call average time
         }
 
-        self.critical_event_time = 105  # average of 90-120 minutes
+        self.critical_event_time = 105  # median of 90-120 minutes
+
+    def update_time_settings(self, new_settings):
+        """Update time duration settings"""
+        if 'interruption_times' in new_settings:
+            self.interruption_times.update(new_settings['interruption_times'])
+        if 'admission_times' in new_settings:
+            self.admission_times.update(new_settings['admission_times'])
+        if 'critical_event_time' in new_settings:
+            self.critical_event_time = new_settings['critical_event_time']
 
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, shift_hours=12):
         base_efficiency = 1.0

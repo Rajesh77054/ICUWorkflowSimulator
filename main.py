@@ -19,17 +19,44 @@ def main():
     st.markdown("""
         This interactive tool helps analyze and visualize ICU dayshift workflow dynamics (8 AM - 8 PM),
         considering various factors that impact provider efficiency and patient care.
-
-        Time estimates:
-        - Nursing questions: 1-3 minutes
-        - Exam callbacks: 5-10 minutes
-        - Peer interruptions: 5-10 minutes
-        - Simple admissions: 60 minutes
-        - Complex admissions: 90 minutes
-        - Critical events: 90-120 minutes
     """)
 
     simulator = WorkflowSimulator()
+
+    # Add configuration section with an expander
+    with st.expander("⚙️ Time Settings Configuration"):
+        st.markdown("### Configure Time Estimates")
+        st.markdown("Adjust the time estimates for various activities below:")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            section_header("Interruption Times", "Duration of different types of interruptions")
+            nursing_time = st.number_input("Nursing Question Duration (minutes)", 1, 10, 2)
+            exam_callback_time = st.number_input("Exam Callback Duration (minutes)", 1, 20, 8)
+            peer_interrupt_time = st.number_input("Peer Interruption Duration (minutes)", 1, 20, 8)
+
+        with col2:
+            section_header("Admission & Critical Event Times", "Duration of patient care activities")
+            simple_admission_time = st.number_input("Simple Admission Duration (minutes)", 30, 120, 60)
+            complex_admission_time = st.number_input("Complex Admission Duration (minutes)", 60, 180, 90)
+            critical_event_time = st.number_input("Critical Event Duration (minutes)", 60, 180, 105)
+
+        # Update simulator settings
+        simulator.update_time_settings({
+            'interruption_times': {
+                'nursing_question': nursing_time,
+                'exam_callback': exam_callback_time,
+                'peer_interrupt': peer_interrupt_time
+            },
+            'admission_times': {
+                'simple': simple_admission_time,
+                'complex': complex_admission_time,
+                'consult': 45,  # keeping these fixed for now
+                'transfer': 30
+            },
+            'critical_event_time': critical_event_time
+        })
 
     # Create two columns for inputs
     col1, col2 = st.columns(2)
@@ -151,7 +178,7 @@ def main():
         }
         </style>
     """, unsafe_allow_html=True)
-    
+
     total_interrupts = nursing_q + exam_callbacks + peer_interrupts
     st.markdown(
         f"""
