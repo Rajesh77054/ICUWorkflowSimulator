@@ -19,12 +19,10 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
 
     return per_provider, time_lost
 
-def calculate_workload(admissions, consults, transfers, critical_events, providers):
-    simulator = WorkflowSimulator()
-
-    # Calculate total time required for all tasks
+def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
+    # Calculate total time required for all tasks using current simulator settings
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                 0.3 * simulator.admission_times['complex'])
+                                0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
@@ -34,10 +32,8 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
 
     return workload_per_provider
 
-def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts):
-    simulator = WorkflowSimulator()
-
-    # Calculate time impact per hour
+def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
+    # Calculate time impact per hour using current simulator settings
     nursing_time = nursing_q * simulator.interruption_times['nursing_question']
     exam_time = exam_callbacks * simulator.interruption_times['exam_callback']
     peer_time = peer_interrupts * simulator.interruption_times['peer_interrupt']
@@ -65,7 +61,7 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts):
     )
 
     return fig
-
+    
 def create_time_allocation_pie(time_lost, available_hours=12):
     # Convert time_lost to minutes for more precise representation
     time_lost_minutes = time_lost * 60
@@ -91,7 +87,7 @@ def create_time_allocation_pie(time_lost, available_hours=12):
 
     return fig
 
-def create_workload_timeline(workload, providers, critical_events_per_day=0):
+def create_workload_timeline(workload, providers, critical_events_per_day, simulator):
     # Create hours array for 12-hour shift (8 AM to 8 PM)
     hours = list(range(8, 21))
 
@@ -99,8 +95,8 @@ def create_workload_timeline(workload, providers, critical_events_per_day=0):
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
 
     # Adjust workload based on critical events
-    # Assume critical events create spikes in workload
-    critical_impact = critical_events_per_day * 0.3
+    # Critical events impact is proportional to their duration
+    critical_impact = (critical_events_per_day * simulator.critical_event_time) / (12 * 60)  # Normalize to shift duration
 
     # Combine base workload with variations and critical impact
     workload_timeline = workload * (1 + base_variation + critical_impact)

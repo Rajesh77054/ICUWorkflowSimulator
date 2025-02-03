@@ -83,8 +83,11 @@ def main():
     interrupts_per_provider, time_lost = calculate_interruptions(
         nursing_q, exam_callbacks, peer_interrupts, providers
     )
-
-    workload = calculate_workload(admissions, consults, transfers, critical_events/7, providers)
+    
+    workload = calculate_workload(
+        admissions, consults, transfers, 
+        critical_events/7, providers, simulator
+    )
 
     # Convert weekly critical events to daily average
     critical_events_per_day = critical_events / 7.0
@@ -145,7 +148,9 @@ def main():
 
     with viz_col1:
         st.plotly_chart(
-            create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts),
+            create_interruption_chart(
+                nursing_q, exam_callbacks, peer_interrupts, simulator
+            ),
             use_container_width=True
         )
 
@@ -154,9 +159,11 @@ def main():
             create_time_allocation_pie(time_lost),
             use_container_width=True
         )
-
+    
     st.plotly_chart(
-        create_workload_timeline(workload, providers, critical_events_per_day),
+        create_workload_timeline(
+            workload, providers, critical_events_per_day, simulator
+        ),
         use_container_width=True
     )
 
