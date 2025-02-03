@@ -37,49 +37,91 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts):
     simulator = WorkflowSimulator()
 
-    categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
-    values = [
-        nursing_q * simulator.interruption_times['nursing_question'],
-        exam_callbacks * simulator.interruption_times['exam_callback'],
-        peer_interrupts * simulator.interruption_times['peer_interrupt']
-    ]
+    # Calculate time impact per hour
+    nursing_time = nursing_q * simulator.interruption_times['nursing_question']
+    exam_time = exam_callbacks * simulator.interruption_times['exam_callback']
+    peer_time = peer_interrupts * simulator.interruption_times['peer_interrupt']
 
-    fig = px.bar(
+    categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
+    values = [nursing_time, exam_time, peer_time]
+
+    # Create a more detailed bar chart
+    fig = go.Figure()
+
+    # Add bars
+    fig.add_trace(go.Bar(
         x=categories,
         y=values,
+        text=[f'{v:.1f} min/hr' for v in values],
+        textposition='auto',
+        marker_color=['#66c2a5', '#fc8d62', '#8da0cb']
+    ))
+
+    fig.update_layout(
         title='Time Impact of Interruptions (minutes per hour)',
-        color=values,
-        color_continuous_scale='Blues'
+        yaxis_title='Minutes per Hour',
+        showlegend=False,
+        plot_bgcolor='white'
     )
-    fig.update_layout(showlegend=False)
+
     return fig
 
 def create_time_allocation_pie(time_lost, available_hours=12):
+    # Convert time_lost to minutes for more precise representation
+    time_lost_minutes = time_lost * 60
+    available_minutes = available_hours * 60
+
     labels = ['Time Lost to Interruptions', 'Available Time']
-    values = [time_lost, available_hours - time_lost]
+    values = [time_lost_minutes, available_minutes - time_lost_minutes]
 
     fig = px.pie(
         values=values,
         names=labels,
-        title='Time Allocation per Shift (hours)',
+        title='Time Allocation per Shift (minutes)',
         color_discrete_sequence=['#ff9999', '#66b3ff']
     )
+
+    # Add total minutes annotation
+    fig.add_annotation(
+        text=f'Total Shift: {available_minutes} minutes',
+        showarrow=False,
+        x=0.5,
+        y=-0.2
+    )
+
     return fig
 
-def create_workload_timeline(workload_baseline, providers):
-    # Create hours array from 8 to 20 (8 AM to 8 PM)
+def create_workload_timeline(workload, providers, critical_events_per_day=0):
+    # Create hours array for 12-hour shift (8 AM to 8 PM)
     hours = list(range(8, 21))
-    # Simulate workload variation throughout the dayshift
-    # Peak during mid-day (around 2 PM)
-    workload = workload_baseline * (1 + np.sin((np.array(hours) - 8) * np.pi / 12) * 0.3)
+
+    # Base workload variation throughout the day
+    base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
+
+    # Adjust workload based on critical events
+    # Assume critical events create spikes in workload
+    critical_impact = critical_events_per_day * 0.3
+
+    # Combine base workload with variations and critical impact
+    workload_timeline = workload * (1 + base_variation + critical_impact)
 
     fig = go.Figure()
+
+    # Add base workload area
     fig.add_trace(go.Scatter(
         x=hours,
-        y=workload,
-        mode='lines+markers',
+        y=workload_timeline,
+        fill='tozeroy',
         name='Workload',
-        line=dict(color='#0096c7')
+        line=dict(color='#0096c7', width=2)
+    ))
+
+    # Add optimal workload reference line
+    fig.add_trace(go.Scatter(
+        x=hours,
+        y=[1.0] * len(hours),
+        name='Optimal Load',
+        line=dict(color='#666666', dash='dash')
     ))
 
     fig.update_layout(
@@ -89,6 +131,15 @@ def create_workload_timeline(workload_baseline, providers):
         xaxis=dict(
             ticktext=['8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'],
             tickvals=[8, 10, 12, 14, 16, 18, 20]
+        ),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
         )
     )
+
     return fig
