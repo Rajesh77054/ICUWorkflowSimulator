@@ -86,7 +86,7 @@ def main():
 
     workload = calculate_workload(
         admissions, consults, transfers, 
-        critical_events/7, providers
+        critical_events/7, providers, simulator
     )
 
     # Convert weekly critical events to daily average
