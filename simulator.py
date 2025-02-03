@@ -70,9 +70,14 @@ class WorkflowSimulator:
     def calculate_cognitive_load(self, interruptions, critical_events_per_day, admissions, workload):
         # Scale from 0-100
         base_load = 30  # baseline cognitive load
-        interrupt_factor = interruptions * 2
-        critical_factor = critical_events_per_day * 15
-        admission_factor = admissions * 5
+        # Factor in time impact of interruptions
+        avg_interrupt_time = sum(self.interruption_times.values()) / len(self.interruption_times)
+        interrupt_factor = interruptions * (avg_interrupt_time / 5)  # normalized by 5-minute baseline
+        # Factor in time impact of critical events
+        critical_factor = critical_events_per_day * (self.critical_event_time / 60)  # normalized by hour
+        # Factor in admission complexity
+        avg_admission_time = (self.admission_times['simple'] + self.admission_times['complex']) / 2
+        admission_factor = admissions * (avg_admission_time / 60)  # normalized by hour
         workload_factor = max(0, (workload - 1.0) * 20)  # Additional load for high workload
 
         total_load = base_load + interrupt_factor + critical_factor + admission_factor + workload_factor

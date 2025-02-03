@@ -33,13 +33,20 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     return workload_per_provider
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
-    # Calculate time impact per hour using current simulator settings
+    # Calculate time impact per hour using simulator settings
     nursing_time = nursing_q * simulator.interruption_times['nursing_question']
     exam_time = exam_callbacks * simulator.interruption_times['exam_callback']
     peer_time = peer_interrupts * simulator.interruption_times['peer_interrupt']
 
     categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
     values = [nursing_time, exam_time, peer_time]
+    
+    # Include time per interruption for more detailed analysis
+    hover_text = [
+        f'Time per interruption: {simulator.interruption_times["nursing_question"]} min',
+        f'Time per interruption: {simulator.interruption_times["exam_callback"]} min',
+        f'Time per interruption: {simulator.interruption_times["peer_interrupt"]} min'
+    ]
 
     # Create a more detailed bar chart
     fig = go.Figure()
