@@ -103,12 +103,14 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     # Base workload variation throughout the day
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
 
-    # Adjust workload based on critical events
-    # Critical events impact is proportional to their duration
+    # Adjust workload based on critical events and their configured duration
     critical_impact = (critical_events_per_day * simulator.critical_event_time) / (12 * 60)  # Normalize to shift duration
-
+    
+    # Scale impact based on actual configured time
+    scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)  # normalized to default duration
+    
     # Combine base workload with variations and critical impact
-    workload_timeline = workload * (1 + base_variation + critical_impact)
+    workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
 
