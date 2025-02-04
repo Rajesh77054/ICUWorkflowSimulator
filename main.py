@@ -186,20 +186,23 @@ def main():
             create_interruption_chart(
                 nursing_q, exam_callbacks, peer_interrupts, simulator
             ),
-            use_container_width=True
+            use_container_width=True,
+            key="interruption_chart"
         )
 
     with viz_col2:
         st.plotly_chart(
             create_time_allocation_pie(time_lost),
-            use_container_width=True
+            use_container_width=True,
+            key="time_allocation_chart"
         )
 
     st.plotly_chart(
         create_workload_timeline(
             workload, providers, critical_events_per_day, simulator
         ),
-        use_container_width=True
+        use_container_width=True,
+        key="workload_timeline_chart"
     )
 
     # Add a detailed breakdown of time impacts
@@ -267,7 +270,8 @@ def main():
                 detailed_burnout['total_risk'],
                 simulator.burnout_thresholds
             ),
-            use_container_width=True
+            use_container_width=True,
+            key="burnout_gauge_chart"
         )
 
         # Display risk category and score
@@ -280,7 +284,8 @@ def main():
         # Display radar chart of risk components
         st.plotly_chart(
             create_burnout_radar_chart(detailed_burnout['risk_components']),
-            use_container_width=True
+            use_container_width=True,
+            key="burnout_radar_chart"
         )
 
     # Display burnout trend chart
@@ -291,7 +296,8 @@ def main():
                 'thresholds': simulator.burnout_thresholds
             }
         ),
-        use_container_width=True
+        use_container_width=True,
+        key="burnout_trend_chart"
     )
 
     # Display detailed recommendations
@@ -378,7 +384,8 @@ def main():
     trend_predictions = st.session_state.predictor.predict_next_week(current_features)
     st.plotly_chart(
         create_prediction_trend_chart(trend_predictions),
-        use_container_width=True
+        use_container_width=True,
+        key="prediction_trend_chart"
     )
 
     # Display feature importance analysis
@@ -389,14 +396,16 @@ def main():
         st.markdown("#### Workload Factors")
         st.plotly_chart(
             create_feature_importance_chart(predictions['workload_importance']),
-            use_container_width=True
+            use_container_width=True,
+            key="workload_importance_chart"
         )
 
     with importance_col2:
         st.markdown("#### Burnout Factors")
         st.plotly_chart(
             create_feature_importance_chart(predictions['burnout_importance']),
-            use_container_width=True
+            use_container_width=True,
+            key="burnout_importance_chart"
         )
 
     # Add model explanation
