@@ -18,6 +18,14 @@ class WorkflowSimulator:
 
         self.critical_event_time = 105  # median of 90-120 minutes
 
+        # New burnout risk thresholds
+        self.burnout_thresholds = {
+            'low': 0.3,
+            'moderate': 0.5,
+            'high': 0.7,
+            'severe': 0.85
+        }
+
     def update_time_settings(self, new_settings):
         """Update time duration settings"""
         if 'interruption_times' in new_settings:
@@ -36,6 +44,51 @@ class WorkflowSimulator:
         efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)
 
         return max(0.3, base_efficiency - efficiency_loss)  # Minimum 30% efficiency
+
+    def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour, 
+                                      critical_events_per_day, efficiency, cognitive_load):
+        """Calculate detailed burnout risk metrics"""
+        # Base factors from previous calculation
+        interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
+        workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
+        critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
+
+        # New factors
+        efficiency_impact = (1 - efficiency) * 0.5  # Impact of reduced efficiency
+        cognitive_impact = (cognitive_load / 100) * 0.4  # Impact of cognitive load
+
+        # Calculate individual risk components
+        risk_components = {
+            "interruption_risk": min(1.0, interruption_factor),
+            "workload_risk": min(1.0, workload_factor),
+            "critical_events_risk": min(1.0, critical_factor),
+            "efficiency_risk": min(1.0, efficiency_impact),
+            "cognitive_load_risk": min(1.0, cognitive_impact)
+        }
+
+        # Calculate weighted total risk
+        weights = {
+            "interruption_risk": 0.2,
+            "workload_risk": 0.25,
+            "critical_events_risk": 0.2,
+            "efficiency_risk": 0.15,
+            "cognitive_load_risk": 0.2
+        }
+
+        total_risk = sum(risk * weights[factor] for factor, risk in risk_components.items())
+
+        # Determine risk category
+        risk_category = "low"
+        for category, threshold in self.burnout_thresholds.items():
+            if total_risk >= threshold:
+                risk_category = category
+
+        return {
+            "total_risk": total_risk,
+            "risk_category": risk_category,
+            "risk_components": risk_components,
+            "component_weights": weights
+        }
 
     def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
         # Scale from 0-1, where >0.7 is high risk

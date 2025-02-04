@@ -209,3 +209,149 @@ def format_recommendations(efficiency, cognitive_load, burnout_risk, total_time)
         )
 
     return recommendations
+
+def create_burnout_radar_chart(risk_components):
+    """Create a radar chart showing different burnout risk components"""
+    categories = list(risk_components.keys())
+    values = list(risk_components.values())
+
+    # Add the first value again to close the polygon
+    categories.append(categories[0])
+    values.append(values[0])
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        fillcolor='rgba(0, 150, 199, 0.3)',
+        line=dict(color='#0096c7', width=2)
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 1]
+            )
+        ),
+        showlegend=False,
+        title='Burnout Risk Components'
+    )
+
+    return fig
+
+def create_burnout_gauge(total_risk, thresholds):
+    """Create a gauge chart showing overall burnout risk"""
+    # Create color steps based on thresholds
+    colors = ['#2ecc71', '#f1c40f', '#e67e22', '#e74c3c']
+
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = total_risk * 100,
+        title = {'text': "Overall Burnout Risk"},
+        gauge = {
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "darkgray"},
+            'steps': [
+                {'range': [0, thresholds['moderate'] * 100], 'color': colors[0]},
+                {'range': [thresholds['moderate'] * 100, thresholds['high'] * 100], 'color': colors[1]},
+                {'range': [thresholds['high'] * 100, thresholds['severe'] * 100], 'color': colors[2]},
+                {'range': [thresholds['severe'] * 100, 100], 'color': colors[3]}
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.75,
+                'value': total_risk * 100
+            }
+        }
+    ))
+
+    fig.update_layout(height=300)
+    return fig
+
+def create_burnout_trend_chart(risk_data, shift_hours=12):
+    """Create a line chart showing burnout risk trend throughout the shift"""
+    hours = list(range(shift_hours))
+    # Simulate risk variation throughout the shift
+    base_trend = np.array([risk_data['total_risk']] * shift_hours)
+
+    # Add slight variations based on typical shift patterns
+    variation = 0.1 * np.sin(np.pi * np.array(hours) / shift_hours)
+    fatigue_factor = np.linspace(0, 0.15, shift_hours)  # Gradual increase in risk due to fatigue
+
+    risk_trend = base_trend + variation + fatigue_factor
+    risk_trend = np.clip(risk_trend, 0, 1)  # Ensure values stay between 0 and 1
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=hours,
+        y=risk_trend,
+        mode='lines+markers',
+        name='Risk Level',
+        line=dict(color='#0096c7', width=2)
+    ))
+
+    # Add threshold lines
+    for threshold_name, threshold_value in risk_data['thresholds'].items():
+        fig.add_trace(go.Scatter(
+            x=hours,
+            y=[threshold_value] * len(hours),
+            mode='lines',
+            name=f'{threshold_name.capitalize()} Risk',
+            line=dict(dash='dash', width=1)
+        ))
+
+    fig.update_layout(
+        title='Burnout Risk Trend During Shift',
+        xaxis_title='Hour of Shift',
+        yaxis_title='Risk Level',
+        yaxis=dict(range=[0, 1]),
+        showlegend=True
+    )
+
+    return fig
+
+def format_burnout_recommendations(risk_data):
+    """Format detailed burnout risk recommendations"""
+    recommendations = []
+
+    # Base recommendations on risk category
+    if risk_data['risk_category'] == 'severe':
+        recommendations.extend([
+            "URGENT: Immediate intervention required to address severe burnout risk:",
+            "- Consider emergency staffing adjustments",
+            "- Implement mandatory breaks and task redistribution",
+            "- Schedule urgent review of workload distribution"
+        ])
+    elif risk_data['risk_category'] == 'high':
+        recommendations.extend([
+            "High burnout risk detected. Recommended actions:",
+            "- Review and optimize provider scheduling",
+            "- Implement additional support during peak hours",
+            "- Consider workflow adjustments to reduce interruptions"
+        ])
+    elif risk_data['risk_category'] == 'moderate':
+        recommendations.extend([
+            "Moderate burnout risk present. Consider:",
+            "- Monitoring workload distribution more closely",
+            "- Implementing preventive measures",
+            "- Reviewing interruption patterns"
+        ])
+
+    # Add specific recommendations based on risk components
+    components = risk_data['risk_components']
+    if components['interruption_risk'] > 0.7:
+        recommendations.append("- Consider implementing protected time periods to reduce interruptions")
+    if components['workload_risk'] > 0.7:
+        recommendations.append("- Evaluate task distribution and consider additional support staff")
+    if components['critical_events_risk'] > 0.7:
+        recommendations.append("- Review critical event response protocols and support systems")
+    if components['efficiency_risk'] > 0.7:
+        recommendations.append("- Assess workflow optimization opportunities")
+    if components['cognitive_load_risk'] > 0.7:
+        recommendations.append("- Implement cognitive load management strategies")
+
+    return recommendations

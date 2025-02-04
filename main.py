@@ -7,7 +7,9 @@ from styles import apply_custom_styles, section_header
 from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
                   create_workload_timeline, generate_report_data,
-                  format_recommendations)
+                  format_recommendations, create_burnout_gauge,
+                  create_burnout_radar_chart, create_burnout_trend_chart,
+                  format_burnout_recommendations)
 from simulator import WorkflowSimulator
 
 def main():
@@ -89,7 +91,7 @@ def main():
     )
 
     workload = calculate_workload(
-        admissions, consults, transfers, 
+        admissions, consults, transfers,
         critical_events/7, providers, simulator
     )
 
@@ -234,6 +236,82 @@ def main():
         """,
         unsafe_allow_html=True
     )
+
+    # Calculate detailed burnout risk
+    detailed_burnout = simulator.calculate_detailed_burnout_risk(
+        workload,
+        interrupts_per_provider,
+        critical_events_per_day,
+        efficiency,
+        cognitive_load
+    )
+
+    # After the existing metrics section, add:
+    st.markdown("### Detailed Burnout Risk Analysis")
+
+    # Create three columns for the burnout visualizations
+    brn_col1, brn_col2 = st.columns(2)
+
+    with brn_col1:
+        # Display burnout gauge
+        st.plotly_chart(
+            create_burnout_gauge(
+                detailed_burnout['total_risk'],
+                simulator.burnout_thresholds
+            ),
+            use_container_width=True
+        )
+
+        # Display risk category and score
+        st.info(f"""
+            **Risk Category:** {detailed_burnout['risk_category'].upper()}  
+            **Risk Score:** {detailed_burnout['total_risk']*100:.1f}%
+        """)
+
+    with brn_col2:
+        # Display radar chart of risk components
+        st.plotly_chart(
+            create_burnout_radar_chart(detailed_burnout['risk_components']),
+            use_container_width=True
+        )
+
+    # Display burnout trend chart
+    st.plotly_chart(
+        create_burnout_trend_chart(
+            {
+                'total_risk': detailed_burnout['total_risk'],
+                'thresholds': simulator.burnout_thresholds
+            }
+        ),
+        use_container_width=True
+    )
+
+    # Display detailed recommendations
+    st.markdown("### Detailed Recommendations")
+    recommendations = format_burnout_recommendations({
+        'risk_category': detailed_burnout['risk_category'],
+        'risk_components': detailed_burnout['risk_components']
+    })
+
+    for rec in recommendations:
+        st.markdown(rec)
+
+    # Component breakdown
+    st.markdown("### Risk Component Analysis")
+    component_data = pd.DataFrame({
+        'Component': list(detailed_burnout['risk_components'].keys()),
+        'Risk Level': list(detailed_burnout['risk_components'].values()),
+        'Weight': [detailed_burnout['component_weights'][k] for k in detailed_burnout['risk_components'].keys()]
+    })
+
+    st.dataframe(
+        component_data.style.format({
+            'Risk Level': '{:.1%}',
+            'Weight': '{:.1%}'
+        }),
+        use_container_width=True
+    )
+
 
     # Recommendations
     st.markdown("### Recommendations")
