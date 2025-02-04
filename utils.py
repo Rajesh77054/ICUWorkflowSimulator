@@ -70,7 +70,7 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
     )
 
     return fig
-    
+
 
 def create_time_allocation_pie(time_lost, available_hours=12):
     # Convert time_lost to minutes for more precise representation
@@ -103,27 +103,27 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
 
     # Base workload variation throughout the day
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
-    
+
     # Add specific rounding inefficiency (9-11 AM)
     rounding_hours = np.array([(9 <= h < 11) for h in hours])
     data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
     repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
-    
+
     # Combine variations
     base_variation = base_variation + data_aggregation_overhead + repeated_data_collection
 
     # Calculate critical event impact with cascading effect
     first_hour_impact = min(60, simulator.critical_event_time) / 60  # Full impact in first hour
     remaining_impact = max(0, simulator.critical_event_time - 60) / 60  # Half impact thereafter
-    
+
     # During first hour both providers are occupied (2x impact)
     critical_impact = (critical_events_per_day * (
         (first_hour_impact * 2) +  # Both providers unavailable
         (remaining_impact * 1)      # One provider unavailable
     )) / 12  # Normalize to shift duration
-    
+
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
-    
+
     # Combine base workload with variations and critical impact
     workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
 
