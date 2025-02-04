@@ -103,6 +103,14 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
 
     # Base workload variation throughout the day
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
+    
+    # Add specific rounding inefficiency (9-11 AM)
+    rounding_hours = np.array([(9 <= h < 11) for h in hours])
+    data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
+    repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
+    
+    # Combine variations
+    base_variation = base_variation + data_aggregation_overhead + repeated_data_collection
 
     # Calculate critical event impact with cascading effect
     first_hour_impact = min(60, simulator.critical_event_time) / 60  # Full impact in first hour
