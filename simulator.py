@@ -40,6 +40,12 @@ class WorkflowSimulator:
         interruption_impact = 0.05
         workload_impact = 0.1
         
+        # Account for rounding inefficiency (9-11 AM)
+        rounding_hours = 2  # 9-11 AM
+        rounding_overhead = 0.8  # 80% overhead during rounds
+        data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
+        rounding_impact = (rounding_overhead + data_collection_inefficiency) * (rounding_hours / shift_hours)
+        
         # Calculate critical event impact on efficiency
         critical_first_hour = min(60, self.critical_event_time)
         critical_remaining = max(0, self.critical_event_time - 60)
@@ -56,7 +62,7 @@ class WorkflowSimulator:
         total_interruptions = interruptions_per_hour * shift_hours
         regular_efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)
         
-        return max(0.3, base_efficiency - regular_efficiency_loss - efficiency_reduction)
+        return max(0.3, base_efficiency - regular_efficiency_loss - efficiency_reduction - rounding_impact)
 
     def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour, 
                                       critical_events_per_day, efficiency, cognitive_load):
