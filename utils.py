@@ -360,7 +360,11 @@ def format_burnout_recommendations(risk_data):
     if components['interruption_risk'] > 0.7:
         recommendations.append("- Consider implementing protected time periods to reduce interruptions")
     if components['workload_risk'] > 0.7:
-        recommendations.append("- Evaluate task distribution and consider additional support staff")
+        recommendations.extend([
+            "- Evaluate task distribution and consider additional support staff",
+            "- Consider implementing a unified data visualization system to reduce rounding overhead",
+            "- Implement persistent storage for static patient data to reduce redundant data collection"
+        ])
     if components['critical_events_risk'] > 0.7:
         recommendations.append("- Review critical event response protocols and support systems")
     if components['efficiency_risk'] > 0.7:

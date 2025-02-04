@@ -70,13 +70,18 @@ class WorkflowSimulator:
         efficiency_impact = (1 - efficiency) * 0.5  # Impact of reduced efficiency
         cognitive_impact = (cognitive_load / 100) * 0.4  # Impact of cognitive load
 
+        # Calculate data aggregation impact during rounds (9-11 AM)
+        rounding_overhead = 0.8  # 80% overhead during rounds
+        data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
+        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor for 2-hour period
+
         # Calculate individual risk components
         risk_components = {
             "interruption_risk": min(1.0, interruption_factor),
-            "workload_risk": min(1.0, workload_factor),
+            "workload_risk": min(1.0, workload_factor + rounding_impact),
             "critical_events_risk": min(1.0, critical_factor),
             "efficiency_risk": min(1.0, efficiency_impact),
-            "cognitive_load_risk": min(1.0, cognitive_impact)
+            "cognitive_load_risk": min(1.0, cognitive_impact + rounding_impact * 0.5)
         }
 
         # Calculate weighted total risk
