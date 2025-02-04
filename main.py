@@ -9,8 +9,15 @@ from utils import (calculate_interruptions, calculate_workload,
                   create_workload_timeline, generate_report_data,
                   format_recommendations, create_burnout_gauge,
                   create_burnout_radar_chart, create_burnout_trend_chart,
-                  format_burnout_recommendations)
+                  format_burnout_recommendations, create_prediction_trend_chart,
+                  create_feature_importance_chart)
 from simulator import WorkflowSimulator
+from ml_predictor import WorkflowPredictor
+
+# Initialize predictor in session state
+if 'predictor' not in st.session_state:
+    st.session_state.predictor = WorkflowPredictor()
+    st.session_state.model_trained = False
 
 def main():
     st.set_page_config(
@@ -326,6 +333,85 @@ def main():
     total_time = interrupt_time + admission_time + critical_time
     if total_time > 720:  # 12 hours in minutes
         st.error("⚠️ Total task time exceeds shift duration. Current workload may not be sustainable.")
+
+    # Add ML Predictions section
+    st.markdown("### Machine Learning Predictions")
+    st.markdown("""
+        This section uses machine learning to predict future workload and burnout risks
+        based on current patterns and historical data.
+    """)
+
+    # Prepare current features for prediction
+    current_features = np.array([
+        nursing_q, exam_callbacks, peer_interrupts,
+        providers, admissions, consults, transfers,
+        critical_events
+    ])
+
+    # Train model if not trained
+    if not st.session_state.model_trained:
+        with st.spinner("Training prediction models..."):
+            training_scores = st.session_state.predictor.train_initial_model(current_features)
+            st.session_state.model_trained = True
+
+    # Make predictions
+    predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
+
+    # Display current predictions
+    pred_col1, pred_col2 = st.columns(2)
+
+    with pred_col1:
+        st.metric(
+            "Predicted Workload Risk",
+            f"{predictions['predicted_workload']:.1%}",
+            help="ML-based prediction of workload risk based on current patterns"
+        )
+
+    with pred_col2:
+        st.metric(
+            "Predicted Burnout Risk",
+            f"{predictions['predicted_burnout']:.1%}",
+            help="ML-based prediction of burnout risk based on current patterns"
+        )
+
+    # Get and display trend predictions
+    trend_predictions = st.session_state.predictor.predict_next_week(current_features)
+    st.plotly_chart(
+        create_prediction_trend_chart(trend_predictions),
+        use_container_width=True
+    )
+
+    # Display feature importance analysis
+    st.markdown("### Feature Importance Analysis")
+    importance_col1, importance_col2 = st.columns(2)
+
+    with importance_col1:
+        st.markdown("#### Workload Factors")
+        st.plotly_chart(
+            create_feature_importance_chart(predictions['workload_importance']),
+            use_container_width=True
+        )
+
+    with importance_col2:
+        st.markdown("#### Burnout Factors")
+        st.plotly_chart(
+            create_feature_importance_chart(predictions['burnout_importance']),
+            use_container_width=True
+        )
+
+    # Add model explanation
+    with st.expander("About the Prediction Model"):
+        st.markdown("""
+            The machine learning model uses a Random Forest algorithm to predict workload and burnout risks.
+            It considers:
+            - Current interruption patterns
+            - Staffing levels
+            - Patient flow metrics
+            - Critical event frequency
+
+            The model is trained on synthetic data generated from current patterns and domain knowledge.
+            Predictions are updated in real-time as you adjust the input parameters.
+        """)
 
     # Add Export Section after recommendations
     st.markdown("### Export Report")

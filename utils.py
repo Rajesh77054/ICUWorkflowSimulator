@@ -378,3 +378,66 @@ def format_burnout_recommendations(risk_data):
         recommendations.append("- Implement cognitive load management strategies")
 
     return recommendations
+
+def create_prediction_trend_chart(predictions):
+    """Create a line chart showing predicted workload and burnout trends"""
+    fig = go.Figure()
+
+    # Add workload prediction line
+    fig.add_trace(go.Scatter(
+        x=[p['day'] for p in predictions],
+        y=[p['workload'] for p in predictions],
+        name='Predicted Workload',
+        line=dict(color='#0096c7', width=2)
+    ))
+
+    # Add burnout prediction line
+    fig.add_trace(go.Scatter(
+        x=[p['day'] for p in predictions],
+        y=[p['burnout'] for p in predictions],
+        name='Predicted Burnout Risk',
+        line=dict(color='#ef476f', width=2)
+    ))
+
+    fig.update_layout(
+        title='Predicted Trends (Next 7 Days)',
+        xaxis_title='Date',
+        yaxis_title='Risk Level',
+        yaxis=dict(range=[0, 1]),
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    return fig
+
+def create_feature_importance_chart(importance_dict):
+    """Create a horizontal bar chart showing feature importance"""
+    features = list(importance_dict.keys())
+    importance = list(importance_dict.values())
+
+    # Sort by importance
+    sorted_indices = np.argsort(importance)
+    features = [features[i] for i in sorted_indices]
+    importance = [importance[i] for i in sorted_indices]
+
+    fig = go.Figure(go.Bar(
+        x=importance,
+        y=features,
+        orientation='h',
+        marker_color='#0096c7'
+    ))
+
+    fig.update_layout(
+        title='Feature Importance Analysis',
+        xaxis_title='Relative Importance',
+        yaxis_title='Feature',
+        showlegend=False
+    )
+
+    return fig
