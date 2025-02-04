@@ -1,9 +1,13 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
+import json
+from datetime import datetime
 from styles import apply_custom_styles, section_header
 from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
-                  create_workload_timeline)
+                  create_workload_timeline, generate_report_data,
+                  format_recommendations)
 from simulator import WorkflowSimulator
 
 def main():
@@ -243,6 +247,63 @@ def main():
     total_time = interrupt_time + admission_time + critical_time
     if total_time > 720:  # 12 hours in minutes
         st.error("⚠️ Total task time exceeds shift duration. Current workload may not be sustainable.")
+
+    # Add Export Section after recommendations
+    st.markdown("### Export Report")
+    st.markdown("Download the analysis in your preferred format:")
+
+    report_data = generate_report_data(
+        interrupts_per_provider, time_lost, efficiency,
+        cognitive_load, workload, burnout_risk,
+        interrupt_time, admission_time, critical_time,
+        providers
+    )
+
+    # Add recommendations to report data
+    report_data["recommendations"] = format_recommendations(
+        efficiency, cognitive_load, burnout_risk,
+        interrupt_time + admission_time + critical_time
+    )
+
+    # Prepare different export formats
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # CSV Export
+    df = pd.DataFrame({
+        "Metric": list(report_data["metrics"].keys()) + list(report_data["time_analysis"].keys()),
+        "Value": list(report_data["metrics"].values()) + list(report_data["time_analysis"].values())
+    })
+    csv = df.to_csv(index=False).encode('utf-8')
+
+    # JSON Export
+    json_str = json.dumps(report_data, indent=2).encode('utf-8')
+
+    # Create download buttons
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name=f'icu_workflow_analysis_{current_time}.csv',
+            mime='text/csv'
+        )
+
+    with col2:
+        st.download_button(
+            label="Download JSON",
+            data=json_str,
+            file_name=f'icu_workflow_analysis_{current_time}.json',
+            mime='application/json'
+        )
+
+    # Display export preview
+    with st.expander("Preview Export Data"):
+        st.dataframe(df, use_container_width=True)
+
+        st.markdown("### Recommendations")
+        for rec in report_data["recommendations"]:
+            st.markdown(f"- {rec}")
 
 if __name__ == "__main__":
     main()

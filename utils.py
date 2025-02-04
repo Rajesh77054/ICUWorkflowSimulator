@@ -71,6 +71,7 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
 
     return fig
     
+
 def create_time_allocation_pie(time_lost, available_hours=12):
     # Convert time_lost to minutes for more precise representation
     time_lost_minutes = time_lost * 60
@@ -150,3 +151,61 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     )
 
     return fig
+
+def generate_report_data(
+    interrupts_per_provider,
+    time_lost,
+    efficiency,
+    cognitive_load,
+    workload,
+    burnout_risk,
+    interrupt_time,
+    admission_time,
+    critical_time,
+    providers
+):
+    """Generate a structured dictionary of report data"""
+    return {
+        "metrics": {
+            "interruptions_per_provider": round(interrupts_per_provider, 2),
+            "time_lost_hours": round(time_lost, 2),
+            "provider_efficiency": round(efficiency * 100, 1),
+            "cognitive_load": round(cognitive_load, 1),
+            "workload_level": round(workload, 2),
+            "burnout_risk": round(burnout_risk * 100, 1)
+        },
+        "time_analysis": {
+            "interruption_time_minutes": round(interrupt_time, 1),
+            "admission_time_minutes": round(admission_time, 1),
+            "critical_time_minutes": round(critical_time, 1),
+            "total_time_minutes": round(interrupt_time + admission_time + critical_time, 1),
+            "time_per_provider_minutes": round((interrupt_time + admission_time + critical_time) / providers, 1)
+        }
+    }
+
+def format_recommendations(efficiency, cognitive_load, burnout_risk, total_time):
+    """Format recommendations based on metrics"""
+    recommendations = []
+
+    if burnout_risk > 0.7:
+        recommendations.append(
+            "High burnout risk detected. Consider increasing provider coverage or "
+            "implementing interruption reduction strategies."
+        )
+    if cognitive_load > 80:
+        recommendations.append(
+            "High cognitive load detected. Consider workflow optimization or "
+            "additional support staff."
+        )
+    if efficiency < 0.7:
+        recommendations.append(
+            "Low efficiency detected. Review interruption patterns and implement "
+            "protected time for critical tasks."
+        )
+    if total_time > 720:  # 12 hours in minutes
+        recommendations.append(
+            "Total task time exceeds shift duration. Current workload may not be "
+            "sustainable."
+        )
+
+    return recommendations
