@@ -35,15 +35,28 @@ class WorkflowSimulator:
         if 'critical_event_time' in new_settings:
             self.critical_event_time = new_settings['critical_event_time']
 
-    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, shift_hours=12):
+    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, critical_events_per_day, shift_hours=12):
         base_efficiency = 1.0
-        interruption_impact = 0.05  # 5% efficiency loss per interruption
-        workload_impact = 0.1  # 10% efficiency loss per unit of workload above baseline
-
+        interruption_impact = 0.05
+        workload_impact = 0.1
+        
+        # Calculate critical event impact on efficiency
+        critical_first_hour = min(60, self.critical_event_time)
+        critical_remaining = max(0, self.critical_event_time - 60)
+        
+        # During first hour, both providers are unavailable
+        total_unavailable_time = critical_first_hour * critical_events_per_day
+        # After first hour, one provider remains on critical event
+        partial_unavailable_time = critical_remaining * critical_events_per_day
+        
+        # Calculate effective shift time reduction
+        shift_minutes = shift_hours * 60
+        efficiency_reduction = (total_unavailable_time / shift_minutes) + (partial_unavailable_time / (2 * shift_minutes))
+        
         total_interruptions = interruptions_per_hour * shift_hours
-        efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)
-
-        return max(0.3, base_efficiency - efficiency_loss)  # Minimum 30% efficiency
+        regular_efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)
+        
+        return max(0.3, base_efficiency - regular_efficiency_loss - efficiency_reduction)
 
     def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour, 
                                       critical_events_per_day, efficiency, cognitive_load):
