@@ -16,6 +16,7 @@ from ml_predictor import WorkflowPredictor
 # Added imports
 from models import get_db, save_workflow_record, get_historical_records
 from sqlalchemy.orm import Session
+from io import BytesIO
 
 # Initialize predictor in session state
 if 'predictor' not in st.session_state:
@@ -443,29 +444,6 @@ def main():
         """)
 
         try:
-            #This section is already moved up
-            # current_features = np.array([
-            #     max(0, nursing_q), max(0, exam_callbacks), max(0, peer_interrupts),
-            #     max(1, providers), max(0, admissions), max(0, consults), max(0, transfers),
-            #     max(0, critical_events)
-            # ])
-
-            # if not st.session_state.model_trained:
-            #     with st.spinner("Training prediction models..."):
-            #         try:
-            #             training_scores = st.session_state.predictor.train_initial_model(current_features)
-            #             st.session_state.model_trained = True
-            #         except Exception as e:
-            #             st.error(f"Error training the model: {str(e)}")
-            #             st.session_state.model_trained = False
-            #             return
-
-            # try:
-            #     predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
-            # except Exception as e:
-            #     st.error(f"Error making predictions: {str(e)}")
-            #     return
-
             pred_col1, pred_col2 = st.columns(2)
 
             with pred_col1:
@@ -570,6 +548,137 @@ def main():
                 st.markdown("### Recommendations")
                 for rec in report_data["recommendations"]:
                     st.markdown(f"- {rec}")
+
+            # Add after the existing export section, before the final except block
+            st.markdown("### Interactive Historical Data Export")
+            st.markdown("""
+                Select date range and metrics to create a custom historical analysis report.
+                You can visualize the data before exporting.
+            """)
+
+            # Date range selection
+            date_col1, date_col2 = st.columns(2)
+            with date_col1:
+                start_date = st.date_input(
+                    "Start Date",
+                    value=pd.Timestamp.now().date() - pd.Timedelta(days=30),
+                    help="Select start date for historical data"
+                )
+            with date_col2:
+                end_date = st.date_input(
+                    "End Date",
+                    value=pd.Timestamp.now().date(),
+                    help="Select end date for historical data"
+                )
+
+            # Metric selection
+            available_metrics = [
+                "Efficiency", "Cognitive Load", "Burnout Risk",
+                "Interruptions/Provider", "Time Lost",
+                "Admission Time", "Critical Time"
+            ]
+            selected_metrics = st.multiselect(
+                "Select Metrics to Include",
+                available_metrics,
+                default=["Efficiency", "Cognitive Load", "Burnout Risk"],
+                help="Choose which metrics to include in the export"
+            )
+
+            if st.button("Generate Report"):
+                # Query historical data with date filter
+                historical_records = get_historical_records(db)
+                if historical_records:
+                    hist_df = pd.DataFrame([{
+                        'Timestamp': record.timestamp,
+                        'Efficiency': record.efficiency,
+                        'Cognitive Load': record.cognitive_load,
+                        'Burnout Risk': record.burnout_risk,
+                        'Interruptions/Provider': record.interrupts_per_provider,
+                        'Time Lost': record.time_lost,
+                        'Admission Time': record.admission_time,
+                        'Critical Time': record.critical_time
+                    } for record in historical_records])
+
+                    # Apply date filter
+                    mask = (hist_df['Timestamp'].dt.date >= start_date) & (hist_df['Timestamp'].dt.date <= end_date)
+                    filtered_df = hist_df.loc[mask]
+
+                    if len(filtered_df) > 0:
+                        st.markdown("### Data Preview")
+                        st.dataframe(
+                            filtered_df[['Timestamp'] + selected_metrics],
+                            use_container_width=True
+                        )
+
+                        # Visualization of selected metrics
+                        st.markdown("### Trend Analysis")
+                        st.line_chart(
+                            filtered_df.set_index('Timestamp')[selected_metrics]
+                        )
+
+                        # Statistical summary
+                        st.markdown("### Statistical Summary")
+                        st.dataframe(
+                            filtered_df[selected_metrics].describe(),
+                            use_container_width=True
+                        )
+
+                        # Export options
+                        st.markdown("### Export Options")
+                        export_col1, export_col2, export_col3 = st.columns(3)
+
+                        # Prepare export data
+                        export_df = filtered_df[['Timestamp'] + selected_metrics].copy()
+                        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                        with export_col1:
+                            csv = export_df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="Download CSV",
+                                data=csv,
+                                file_name=f'historical_analysis_{current_time}.csv',
+                                mime='text/csv'
+                            )
+
+                        with export_col2:
+                            json_str = export_df.to_json(orient='records', date_format='iso').encode('utf-8')
+                            st.download_button(
+                                label="Download JSON",
+                                data=json_str,
+                                file_name=f'historical_analysis_{current_time}.json',
+                                mime='application/json'
+                            )
+
+                        with export_col3:
+                            # Excel export with formatting
+                            excel_buffer = BytesIO()
+                            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                                export_df.to_excel(writer, sheet_name='Historical Data', index=False)
+                                workbook = writer.book
+                                worksheet = writer.sheets['Historical Data']
+
+                                # Add formatting
+                                header_format = workbook.add_format({
+                                    'bold': True,
+                                    'fg_color': '#D7E4BC',
+                                    'border': 1
+                                })
+
+                                for col_num, value in enumerate(export_df.columns.values):
+                                    worksheet.write(0, col_num, value, header_format)
+                                    worksheet.set_column(col_num, col_num, 15)
+
+                            excel_buffer.seek(0)
+                            st.download_button(
+                                label="Download Excel",
+                                data=excel_buffer,
+                                file_name=f'historical_analysis_{current_time}.xlsx',
+                                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            )
+                    else:
+                        st.warning("No data available for the selected date range.")
+                else:
+                    st.info("No historical data available yet. Data will be collected as you use the application.")
 
         except Exception as e:
             st.error(f"An error occurred while processing the data: {str(e)}")
