@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 import json
 from datetime import datetime
-from styles import apply_custom_styles, section_header, metric_container
-from animations import load_animations, add_loading_animation, wrap_with_animation
+from styles import apply_custom_styles, section_header
 from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
                   create_workload_timeline, generate_report_data,
@@ -27,25 +26,20 @@ def main():
         layout="wide"
     )
 
-    # Apply custom styles and animations
     apply_custom_styles()
-    load_animations()
 
-    # Animated title and description
-    st.markdown(wrap_with_animation("""
-        # ICU Workflow Dynamics Model
+    st.title("ICU Workflow Dynamics Model")
+    st.markdown("""
         This interactive tool helps analyze and visualize ICU dayshift workflow dynamics (8 AM - 8 PM),
         considering various factors that impact provider efficiency and patient care.
-    """, "animate-fade-in"), unsafe_allow_html=True)
+    """)
 
     simulator = WorkflowSimulator()
 
-    # Add configuration section with an expander and animation
+    # Add configuration section with an expander
     with st.expander("⚙️ Time Settings Configuration"):
-        st.markdown(wrap_with_animation("""
-            ### Configure Time Settings
-            Adjust the time estimates for various activities below:
-        """, "animate-fade-in"), unsafe_allow_html=True)
+        st.markdown("### Configure Time Estimates")
+        st.markdown("Adjust the time estimates for various activities below:")
 
         col1, col2 = st.columns(2)
 
@@ -61,8 +55,7 @@ def main():
             complex_admission_time = st.number_input("Complex Admission Duration (minutes)", 60, 180, 90)
             critical_event_time = st.number_input("Critical Event Duration (minutes)", 60, 180, 105)
 
-    # Update simulator settings with loading animation
-    with st.spinner("Updating simulation parameters..."):
+        # Update simulator settings
         simulator.update_time_settings({
             'interruption_times': {
                 'nursing_question': nursing_time,
@@ -72,13 +65,13 @@ def main():
             'admission_times': {
                 'simple': simple_admission_time,
                 'complex': complex_admission_time,
-                'consult': 45,
+                'consult': 45,  # keeping these fixed for now
                 'transfer': 30
             },
             'critical_event_time': critical_event_time
         })
 
-    # Create two columns for inputs with animations
+    # Create two columns for inputs
     col1, col2 = st.columns(2)
 
     with col1:
@@ -99,87 +92,69 @@ def main():
         section_header("Critical Events", "Enter frequency of critical events")
         critical_events = st.number_input("Critical Events (per week)", 0, 50, 5)
 
-    # Calculate metrics with loading animation
-    with st.spinner("Calculating metrics..."):
-        interrupts_per_provider, time_lost = calculate_interruptions(
-            nursing_q, exam_callbacks, peer_interrupts, providers
-        )
+    # Calculate metrics
+    interrupts_per_provider, time_lost = calculate_interruptions(
+        nursing_q, exam_callbacks, peer_interrupts, providers
+    )
 
-        workload = calculate_workload(
-            admissions, consults, transfers,
-            critical_events/7, providers, simulator
-        )
+    workload = calculate_workload(
+        admissions, consults, transfers,
+        critical_events/7, providers, simulator
+    )
 
-        critical_events_per_day = critical_events / 7.0
+    # Convert weekly critical events to daily average
+    critical_events_per_day = critical_events / 7.0
 
-        interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
-            nursing_q, exam_callbacks, peer_interrupts,
-            admissions, consults, transfers, critical_events_per_day
-        )
+    # Calculate time impacts
+    interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
+        nursing_q, exam_callbacks, peer_interrupts,
+        admissions, consults, transfers, critical_events_per_day
+    )
 
-        efficiency = simulator.simulate_provider_efficiency(
-            nursing_q + exam_callbacks + peer_interrupts,
-            providers,
-            workload,
-            critical_events_per_day
-        )
+    efficiency = simulator.simulate_provider_efficiency(
+        nursing_q + exam_callbacks + peer_interrupts,
+        providers,
+        workload,
+        critical_events_per_day
+    )
 
-        cognitive_load = simulator.calculate_cognitive_load(
-            interrupts_per_provider,
-            critical_events_per_day,
-            admissions,
-            workload
-        )
+    burnout_risk = simulator.calculate_burnout_risk(
+        workload,
+        interrupts_per_provider,
+        critical_events_per_day
+    )
 
-        burnout_risk = simulator.calculate_burnout_risk(
-            workload,
-            interrupts_per_provider,
-            critical_events_per_day
-        )
+    # Update the cognitive load calculation to use simulator settings
+    cognitive_load = simulator.calculate_cognitive_load(
+        interrupts_per_provider,
+        critical_events_per_day,
+        admissions,
+        workload
+    )
 
-        # Update the cognitive load calculation to use simulator settings
-        cognitive_load = simulator.calculate_cognitive_load(
-            interrupts_per_provider,
-            critical_events_per_day,
-            admissions,
-            workload
-        )
-
-
-    # Display metrics with animations
-    st.markdown(wrap_with_animation("### Key Metrics", "animate-fade-in"), unsafe_allow_html=True)
+    # Display metrics
+    st.markdown("### Key Metrics")
     metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
     with metric_col1:
-        metric_container(
+        st.metric(
             "Interruptions per Provider",
             f"{interrupts_per_provider:.1f}/shift",
-            f"Average duration: {sum(simulator.interruption_times.values())/len(simulator.interruption_times):.1f} min"
+            help=f"Average interruption duration: {sum(simulator.interruption_times.values())/len(simulator.interruption_times):.1f} min"
         )
-
     with metric_col2:
-        metric_container(
-            "Hours Lost to Interruptions",
-            f"{time_lost:.1f}",
-            "Total time spent handling interruptions"
-        )
-
+        st.metric("Hours Lost to Interruptions", f"{time_lost:.1f}")
     with metric_col3:
-        metric_container(
-            "Provider Efficiency",
-            f"{efficiency:.1%}",
-            "Percentage of optimal performance"
-        )
-
+        st.metric("Provider Efficiency", f"{efficiency:.1%}")
     with metric_col4:
-        metric_container(
+        st.metric(
             "Cognitive Load",
             f"{cognitive_load:.0f}/100",
-            "Based on interruptions and workload"
+            help="Based on interruptions, critical events, and workload"
         )
 
     # Time impact breakdown with tooltips
-    st.markdown(wrap_with_animation("### Time Impact Analysis (minutes per shift)", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Time Impact Analysis (minutes per shift)")
     impact_col1, impact_col2, impact_col3 = st.columns(3)
 
     with impact_col1:
@@ -201,8 +176,9 @@ def main():
             help=f"Based on {simulator.critical_event_time} minutes per critical event"
         )
 
+    # Update the visualization section to properly reflect critical events impact
     # Visualizations section
-    st.markdown(wrap_with_animation("### Workflow Analysis", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Workflow Analysis")
     viz_col1, viz_col2 = st.columns(2)
 
     with viz_col1:
@@ -230,7 +206,7 @@ def main():
     )
 
     # Add a detailed breakdown of time impacts
-    st.markdown(wrap_with_animation("### Time Impact Details", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Time Impact Details")
     st.markdown("""
         <style>
         .impact-grid {
@@ -282,7 +258,7 @@ def main():
     )
 
     # After the existing metrics section, add:
-    st.markdown(wrap_with_animation("### Detailed Burnout Risk Analysis", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Detailed Burnout Risk Analysis")
 
     # Create three columns for the burnout visualizations
     brn_col1, brn_col2 = st.columns(2)
@@ -325,7 +301,7 @@ def main():
     )
 
     # Display detailed recommendations
-    st.markdown(wrap_with_animation("### Detailed Recommendations", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Detailed Recommendations")
     recommendations = format_burnout_recommendations({
         'risk_category': detailed_burnout['risk_category'],
         'risk_components': detailed_burnout['risk_components']
@@ -335,7 +311,7 @@ def main():
         st.markdown(rec)
 
     # Component breakdown
-    st.markdown(wrap_with_animation("### Risk Component Analysis", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Risk Component Analysis")
     component_data = pd.DataFrame({
         'Component': list(detailed_burnout['risk_components'].keys()),
         'Risk Level': list(detailed_burnout['risk_components'].values()),
@@ -352,7 +328,7 @@ def main():
 
 
     # Recommendations
-    st.markdown(wrap_with_animation("### Recommendations", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Recommendations")
     if burnout_risk > 0.7:
         st.warning("⚠️ High burnout risk detected. Consider increasing provider coverage or implementing interruption reduction strategies.")
     if cognitive_load > 80:
@@ -365,7 +341,7 @@ def main():
         st.error("⚠️ Total task time exceeds shift duration. Current workload may not be sustainable.")
 
     # Add ML Predictions section
-    st.markdown(wrap_with_animation("### Machine Learning Predictions", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Machine Learning Predictions")
     st.markdown("""
         This section uses machine learning to predict future workload and burnout risks
         based on current patterns and historical data.
@@ -413,7 +389,7 @@ def main():
     )
 
     # Display feature importance analysis
-    st.markdown(wrap_with_animation("### Feature Importance Analysis", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Feature Importance Analysis")
     importance_col1, importance_col2 = st.columns(2)
 
     with importance_col1:
@@ -447,7 +423,7 @@ def main():
         """)
 
     # Add Export Section after recommendations
-    st.markdown(wrap_with_animation("### Export Report", "animate-fade-in"), unsafe_allow_html=True)
+    st.markdown("### Export Report")
     st.markdown("Download the analysis in your preferred format:")
 
     report_data = generate_report_data(
