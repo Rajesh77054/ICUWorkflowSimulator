@@ -115,17 +115,19 @@ class WorkflowSimulator:
         }
 
     def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
-        # Scale from 0-1, where >0.7 is high risk
+        # Calculate risk components consistently with detailed calculation
         interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
         workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
         critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
-        
-        # Add rounding inefficiency impact
+
+        # Add consistent rounding inefficiency impact
         rounding_overhead = 0.8  # 80% overhead during rounds
         data_collection_inefficiency = 0.3  # 30% inefficiency
         rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
-        
-        base_risk = min(1.0, interruption_factor + workload_factor + critical_factor + rounding_impact)
+
+        # Use same weighting as detailed calculation
+        base_risk = min(1.0, (interruption_factor * 0.2) + (workload_factor * 0.25) + 
+                       (critical_factor * 0.2) + (rounding_impact * 0.35))
         return base_risk
 
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, 

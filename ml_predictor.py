@@ -46,9 +46,10 @@ class WorkflowPredictor:
         )
 
         synthetic_burnout = np.clip(
-            0.4 * synthetic_workload +
-            0.3 * (synthetic_features[:, :3].sum(axis=1) / synthetic_features[:, 3]) +
-            0.3 * np.random.normal(0.5, 0.1, num_samples),  # random fatigue factor
+            0.25 * synthetic_workload +  # Aligned with simulator weights
+            0.2 * (synthetic_features[:, :3].sum(axis=1) / synthetic_features[:, 3]) +  # interruption impact
+            0.2 * (synthetic_features[:, 7] / 7) +  # critical events impact
+            0.35 * np.random.normal(0.5, 0.1, num_samples),  # rounding and fatigue factors
             0, 1
         )
 
