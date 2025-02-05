@@ -13,6 +13,9 @@ from utils import (calculate_interruptions, calculate_workload,
                   create_feature_importance_chart)
 from simulator import WorkflowSimulator
 from ml_predictor import WorkflowPredictor
+# Added imports
+from models import get_db, save_workflow_record, get_historical_records
+from sqlalchemy.orm import Session
 
 # Initialize predictor in session state
 if 'predictor' not in st.session_state:
@@ -39,7 +42,6 @@ def main():
 
         simulator = WorkflowSimulator()
 
-        # Add configuration section with an expander
         with st.expander("⚙️ Time Settings Configuration"):
             st.markdown("### Configure Time Estimates")
             st.markdown("Adjust the time estimates for various activities below:")
@@ -58,7 +60,6 @@ def main():
                 complex_admission_time = max(60, st.number_input("Complex Admission Duration (minutes)", 60, 180, 90))
                 critical_event_time = max(60, st.number_input("Critical Event Duration (minutes)", 60, 180, 105))
 
-            # Rest of the time settings remain unchanged
             simulator.update_time_settings({
                 'interruption_times': {
                     'nursing_question': nursing_time,
@@ -74,7 +75,6 @@ def main():
                 'critical_event_time': critical_event_time
             })
 
-        # Create two columns for inputs
         col1, col2 = st.columns(2)
 
         with col1:
@@ -95,7 +95,6 @@ def main():
             section_header("Critical Events", "Enter frequency of critical events")
             critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5))
 
-        # Calculate metrics
         interrupts_per_provider, time_lost = calculate_interruptions(
             nursing_q, exam_callbacks, peer_interrupts, providers
         )
@@ -105,10 +104,8 @@ def main():
             critical_events/7, providers, simulator
         )
 
-        # Convert weekly critical events to daily average
         critical_events_per_day = critical_events / 7.0
 
-        # Calculate time impacts
         interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
             nursing_q, exam_callbacks, peer_interrupts,
             admissions, consults, transfers, critical_events_per_day
@@ -127,7 +124,6 @@ def main():
             critical_events_per_day
         )
 
-        # Update the cognitive load calculation to use simulator settings
         cognitive_load = simulator.calculate_cognitive_load(
             interrupts_per_provider,
             critical_events_per_day,
@@ -135,7 +131,6 @@ def main():
             workload
         )
 
-        # Display metrics
         st.markdown("### Key Metrics")
         metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
@@ -156,7 +151,6 @@ def main():
                 help="Based on interruptions, critical events, and workload"
             )
 
-        # Time impact breakdown with tooltips
         st.markdown("### Time Impact Analysis (minutes per shift)")
         impact_col1, impact_col2, impact_col3 = st.columns(3)
 
@@ -179,8 +173,35 @@ def main():
                 help=f"Based on {simulator.critical_event_time} minutes per critical event"
             )
 
-        # Update the visualization section to properly reflect critical events impact
-        # Visualizations section
+
+        # Save to database
+        db = next(get_db())
+        metrics = {
+            'interrupts_per_provider': interrupts_per_provider,
+            'time_lost': time_lost,
+            'efficiency': efficiency,
+            'cognitive_load': cognitive_load,
+            'burnout_risk': burnout_risk,
+            'interrupt_time': interrupt_time,
+            'admission_time': admission_time,
+            'critical_time': critical_time,
+            'recommendations': format_recommendations(
+                efficiency, cognitive_load, burnout_risk,
+                interrupt_time + admission_time + critical_time
+            )
+        }
+
+        # Get predictions
+        predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
+        predictions['risk_components'] = detailed_burnout['risk_components']
+
+        save_workflow_record(
+            db,
+            nursing_q, exam_callbacks, peer_interrupts,
+            providers, admissions, consults, transfers,
+            critical_events, metrics, predictions
+        )
+
         st.markdown("### Workflow Analysis")
         viz_col1, viz_col2 = st.columns(2)
 
@@ -208,7 +229,6 @@ def main():
             key="workload_timeline_chart"
         )
 
-        # Add a detailed breakdown of time impacts
         st.markdown("### Time Impact Details")
         st.markdown("""
             <style>
@@ -251,7 +271,6 @@ def main():
             unsafe_allow_html=True
         )
 
-        # Calculate detailed burnout risk
         detailed_burnout = simulator.calculate_detailed_burnout_risk(
             workload,
             interrupts_per_provider,
@@ -260,14 +279,11 @@ def main():
             cognitive_load
         )
 
-        # After the existing metrics section, add:
         st.markdown("### Detailed Burnout Risk Analysis")
 
-        # Create three columns for the burnout visualizations
         brn_col1, brn_col2 = st.columns(2)
 
         with brn_col1:
-            # Display burnout gauge
             st.plotly_chart(
                 create_burnout_gauge(
                     detailed_burnout['total_risk'],
@@ -277,21 +293,18 @@ def main():
                 key="burnout_gauge_chart"
             )
 
-            # Display risk category and score
             st.info(f"""
                 **Risk Category:** {detailed_burnout['risk_category'].upper()}  
                 **Risk Score:** {detailed_burnout['total_risk']*100:.1f}%
             """)
 
         with brn_col2:
-            # Display radar chart of risk components
             st.plotly_chart(
                 create_burnout_radar_chart(detailed_burnout['risk_components']),
                 use_container_width=True,
                 key="burnout_radar_chart"
             )
 
-        # Display burnout trend chart
         st.plotly_chart(
             create_burnout_trend_chart(
                 {
@@ -303,7 +316,6 @@ def main():
             key="burnout_trend_chart"
         )
 
-        # Display detailed recommendations
         st.markdown("### Detailed Recommendations")
         recommendations = format_burnout_recommendations({
             'risk_category': detailed_burnout['risk_category'],
@@ -313,7 +325,6 @@ def main():
         for rec in recommendations:
             st.markdown(rec)
 
-        # Component breakdown
         st.markdown("### Risk Component Analysis")
         component_data = pd.DataFrame({
             'Component': list(detailed_burnout['risk_components'].keys()),
@@ -330,7 +341,6 @@ def main():
         )
 
 
-        # Recommendations
         st.markdown("### Recommendations")
         if burnout_risk > 0.7:
             st.warning("⚠️ High burnout risk detected. Consider increasing provider coverage or implementing interruption reduction strategies.")
@@ -343,14 +353,58 @@ def main():
         if total_time > 720:  # 12 hours in minutes
             st.error("⚠️ Total task time exceeds shift duration. Current workload may not be sustainable.")
 
-        # ML Predictions section with error handling
+        st.markdown("### Historical Analysis")
+        historical_records = get_historical_records(db)
+
+        if historical_records:
+            hist_df = pd.DataFrame([{
+                'Timestamp': record.timestamp,
+                'Efficiency': record.efficiency,
+                'Cognitive Load': record.cognitive_load,
+                'Burnout Risk': record.burnout_risk,
+                'Interruptions/Provider': record.interrupts_per_provider
+            } for record in historical_records])
+
+            st.line_chart(hist_df.set_index('Timestamp')[
+                ['Efficiency', 'Cognitive Load', 'Burnout Risk']
+            ])
+
+            st.markdown("#### Trend Analysis")
+            trends_col1, trends_col2 = st.columns(2)
+
+            with trends_col1:
+                avg_efficiency = hist_df['Efficiency'].mean()
+                current_efficiency = hist_df['Efficiency'].iloc[0]
+                efficiency_delta = current_efficiency - avg_efficiency
+
+                st.metric(
+                    "Efficiency Trend",
+                    f"{current_efficiency:.1%}",
+                    f"{efficiency_delta:+.1%}",
+                    help="Comparison with historical average"
+                )
+
+            with trends_col2:
+                avg_burnout = hist_df['Burnout Risk'].mean()
+                current_burnout = hist_df['Burnout Risk'].iloc[0]
+                burnout_delta = current_burnout - avg_burnout
+
+                st.metric(
+                    "Burnout Risk Trend",
+                    f"{current_burnout:.1%}",
+                    f"{burnout_delta:+.1%}",
+                    help="Comparison with historical average"
+                )
+        else:
+            st.info("No historical data available yet. Data will be collected as you use the application.")
+
+
         st.markdown("### Machine Learning Predictions")
         st.markdown("""
             This section uses machine learning to predict future workload and burnout risks
             based on current patterns and historical data.
         """)
 
-        # Prepare current features for prediction with validation
         try:
             current_features = np.array([
                 max(0, nursing_q), max(0, exam_callbacks), max(0, peer_interrupts),
@@ -358,7 +412,6 @@ def main():
                 max(0, critical_events)
             ])
 
-            # Train model if not trained
             if not st.session_state.model_trained:
                 with st.spinner("Training prediction models..."):
                     try:
@@ -369,14 +422,12 @@ def main():
                         st.session_state.model_trained = False
                         return
 
-            # Make predictions with error handling
             try:
                 predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
             except Exception as e:
                 st.error(f"Error making predictions: {str(e)}")
                 return
 
-            # Display current predictions
             pred_col1, pred_col2 = st.columns(2)
 
             with pred_col1:
@@ -393,7 +444,6 @@ def main():
                     help="ML-based prediction of burnout risk based on current patterns"
                 )
 
-            # Get and display trend predictions
             trend_predictions = st.session_state.predictor.predict_next_week(current_features)
             st.plotly_chart(
                 create_prediction_trend_chart(trend_predictions),
@@ -401,7 +451,6 @@ def main():
                 key="prediction_trend_chart"
             )
 
-            # Display feature importance analysis
             st.markdown("### Feature Importance Analysis")
             importance_col1, importance_col2 = st.columns(2)
 
@@ -421,7 +470,6 @@ def main():
                     key="burnout_importance_chart"
                 )
 
-            # Add model explanation
             with st.expander("About the Prediction Model"):
                 st.markdown("""
                     The machine learning model uses a Random Forest algorithm to predict workload and burnout risks.
@@ -435,7 +483,6 @@ def main():
                     Predictions are updated in real-time as you adjust the input parameters.
                 """)
 
-            # Add Export Section after recommendations
             st.markdown("### Export Report")
             st.markdown("Download the analysis in your preferred format:")
 
@@ -446,26 +493,21 @@ def main():
                 providers
             )
 
-            # Add recommendations to report data
             report_data["recommendations"] = format_recommendations(
                 efficiency, cognitive_load, burnout_risk,
                 interrupt_time + admission_time + critical_time
             )
 
-            # Prepare different export formats
             current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            # CSV Export
             df = pd.DataFrame({
                 "Metric": list(report_data["metrics"].keys()) + list(report_data["time_analysis"].keys()),
                 "Value": list(report_data["metrics"].values()) + list(report_data["time_analysis"].values())
             })
             csv = df.to_csv(index=False).encode('utf-8')
 
-            # JSON Export
             json_str = json.dumps(report_data, indent=2).encode('utf-8')
 
-            # Create download buttons
             col1, col2 = st.columns(2)
 
             with col1:
@@ -484,7 +526,6 @@ def main():
                     mime='application/json'
                 )
 
-            # Display export preview
             with st.expander("Preview Export Data"):
                 st.dataframe(df, use_container_width=True)
 
