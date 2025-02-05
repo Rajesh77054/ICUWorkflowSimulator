@@ -174,33 +174,70 @@ def main():
             )
 
 
-        # Save to database
-        db = next(get_db())
-        metrics = {
-            'interrupts_per_provider': interrupts_per_provider,
-            'time_lost': time_lost,
-            'efficiency': efficiency,
-            'cognitive_load': cognitive_load,
-            'burnout_risk': burnout_risk,
-            'interrupt_time': interrupt_time,
-            'admission_time': admission_time,
-            'critical_time': critical_time,
-            'recommendations': format_recommendations(
-                efficiency, cognitive_load, burnout_risk,
-                interrupt_time + admission_time + critical_time
+        # Prepare current features for prediction with validation
+        try:
+            current_features = np.array([
+                max(0, nursing_q), max(0, exam_callbacks), max(0, peer_interrupts),
+                max(1, providers), max(0, admissions), max(0, consults), max(0, transfers),
+                max(0, critical_events)
+            ])
+
+            if not st.session_state.model_trained:
+                with st.spinner("Training prediction models..."):
+                    try:
+                        training_scores = st.session_state.predictor.train_initial_model(current_features)
+                        st.session_state.model_trained = True
+                    except Exception as e:
+                        st.error(f"Error training the model: {str(e)}")
+                        st.session_state.model_trained = False
+                        return
+
+            # Make predictions with error handling
+            try:
+                predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
+            except Exception as e:
+                st.error(f"Error making predictions: {str(e)}")
+                return
+
+            # Calculate detailed burnout risk
+            detailed_burnout = simulator.calculate_detailed_burnout_risk(
+                workload,
+                interrupts_per_provider,
+                critical_events_per_day,
+                efficiency,
+                cognitive_load
             )
-        }
 
-        # Get predictions
-        predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
-        predictions['risk_components'] = detailed_burnout['risk_components']
+            # Save to database
+            db = next(get_db())
+            metrics = {
+                'interrupts_per_provider': interrupts_per_provider,
+                'time_lost': time_lost,
+                'efficiency': efficiency,
+                'cognitive_load': cognitive_load,
+                'burnout_risk': burnout_risk,
+                'interrupt_time': interrupt_time,
+                'admission_time': admission_time,
+                'critical_time': critical_time,
+                'recommendations': format_recommendations(
+                    efficiency, cognitive_load, burnout_risk,
+                    interrupt_time + admission_time + critical_time
+                )
+            }
 
-        save_workflow_record(
-            db,
-            nursing_q, exam_callbacks, peer_interrupts,
-            providers, admissions, consults, transfers,
-            critical_events, metrics, predictions
-        )
+            predictions['risk_components'] = detailed_burnout['risk_components']
+
+            save_workflow_record(
+                db,
+                nursing_q, exam_callbacks, peer_interrupts,
+                providers, admissions, consults, transfers,
+                critical_events, metrics, predictions
+            )
+
+        except Exception as e:
+            st.error(f"An error occurred while preparing features or saving data: {str(e)}")
+            return
+
 
         st.markdown("### Workflow Analysis")
         viz_col1, viz_col2 = st.columns(2)
@@ -406,27 +443,28 @@ def main():
         """)
 
         try:
-            current_features = np.array([
-                max(0, nursing_q), max(0, exam_callbacks), max(0, peer_interrupts),
-                max(1, providers), max(0, admissions), max(0, consults), max(0, transfers),
-                max(0, critical_events)
-            ])
+            #This section is already moved up
+            # current_features = np.array([
+            #     max(0, nursing_q), max(0, exam_callbacks), max(0, peer_interrupts),
+            #     max(1, providers), max(0, admissions), max(0, consults), max(0, transfers),
+            #     max(0, critical_events)
+            # ])
 
-            if not st.session_state.model_trained:
-                with st.spinner("Training prediction models..."):
-                    try:
-                        training_scores = st.session_state.predictor.train_initial_model(current_features)
-                        st.session_state.model_trained = True
-                    except Exception as e:
-                        st.error(f"Error training the model: {str(e)}")
-                        st.session_state.model_trained = False
-                        return
+            # if not st.session_state.model_trained:
+            #     with st.spinner("Training prediction models..."):
+            #         try:
+            #             training_scores = st.session_state.predictor.train_initial_model(current_features)
+            #             st.session_state.model_trained = True
+            #         except Exception as e:
+            #             st.error(f"Error training the model: {str(e)}")
+            #             st.session_state.model_trained = False
+            #             return
 
-            try:
-                predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
-            except Exception as e:
-                st.error(f"Error making predictions: {str(e)}")
-                return
+            # try:
+            #     predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
+            # except Exception as e:
+            #     st.error(f"Error making predictions: {str(e)}")
+            #     return
 
             pred_col1, pred_col2 = st.columns(2)
 
