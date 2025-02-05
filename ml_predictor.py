@@ -36,10 +36,12 @@ class WorkflowPredictor:
         synthetic_features = np.maximum(synthetic_features, 0)
 
         # Generate synthetic targets using domain knowledge
+        rounding_impact = 0.15  # Additional impact from rounding inefficiency
         synthetic_workload = np.clip(
-            0.3 * synthetic_features[:, :3].sum(axis=1) +  # interruption impact
-            0.4 * (synthetic_features[:, 4:7].sum(axis=1) / synthetic_features[:, 3]) +  # admission load per provider
-            0.3 * (synthetic_features[:, 7] / 7),  # critical events impact
+            0.25 * synthetic_features[:, :3].sum(axis=1) +  # interruption impact
+            0.35 * (synthetic_features[:, 4:7].sum(axis=1) / synthetic_features[:, 3]) +  # admission load per provider
+            0.25 * (synthetic_features[:, 7] / 7) +  # critical events impact
+            rounding_impact,  # rounding inefficiency impact
             0, 1
         )
 

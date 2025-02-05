@@ -109,10 +109,15 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
     repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
     
-    # Smooth the transition at rounding boundaries
-    transition_factor = 0.2
-    transition_hours = np.array([(h == 8 or h == 11) for h in hours])
-    rounding_hours = rounding_hours + (transition_hours * transition_factor)
+    # Smooth the transition at rounding boundaries with gradual ramping
+    transition_start = np.array([(h == 8) for h in hours]) * 0.3
+    transition_end = np.array([(h == 11) for h in hours]) * 0.2
+    rounding_hours = rounding_hours + transition_start + transition_end
+    
+    # Add gradual buildup and cooldown
+    pre_rounds = np.array([(h == 8) for h in hours]) * 0.4
+    post_rounds = np.array([(h == 11) for h in hours]) * 0.3
+    rounding_hours = rounding_hours + pre_rounds + post_rounds
 
     # Combine variations
     base_variation = base_variation + data_aggregation_overhead + repeated_data_collection
