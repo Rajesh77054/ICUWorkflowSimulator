@@ -44,3 +44,9 @@ ENV/
 # System specific
 .DS_Store
 Thumbs.db
+
+# ML models
+models/*.joblib
+
+# Logs
+*.log
