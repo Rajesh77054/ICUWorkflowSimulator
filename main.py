@@ -499,186 +499,192 @@ def main():
                     Predictions are updated in real-time as you adjust the input parameters.
                 """)
 
-            st.markdown("### Export Report")
-            st.markdown("Download the analysis in your preferred format:")
-
-            report_data = generate_report_data(
-                interrupts_per_provider, time_lost, efficiency,
-                cognitive_load, workload, burnout_risk,
-                interrupt_time, admission_time, critical_time,
-                providers
+            st.markdown("### Reports")
+            report_type = st.selectbox(
+                "Select Report Type",
+                ["Current Session Report", "Historical Analysis Report"],
+                help="Choose the type of report you want to generate"
             )
 
-            report_data["recommendations"] = format_recommendations(
-                efficiency, cognitive_load, burnout_risk,
-                interrupt_time + admission_time + critical_time
-            )
+            if report_type == "Current Session Report":
+                st.markdown("#### Export Current Session Report")
+                st.markdown("Download the current session analysis in your preferred format:")
 
-            current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            df = pd.DataFrame({
-                "Metric": list(report_data["metrics"].keys()) + list(report_data["time_analysis"].keys()),
-                "Value": list(report_data["metrics"].values()) + list(report_data["time_analysis"].values())
-            })
-            csv = df.to_csv(index=False).encode('utf-8')
-
-            json_str = json.dumps(report_data, indent=2).encode('utf-8')
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.download_button(
-                    label="Download CSV",
-                    data=csv,
-                    file_name=f'icu_workflow_analysis_{current_time}.csv',
-                    mime='text/csv'
+                report_data = generate_report_data(
+                    interrupts_per_provider, time_lost, efficiency,
+                    cognitive_load, workload, burnout_risk,
+                    interrupt_time, admission_time, critical_time,
+                    providers
                 )
 
-            with col2:
-                st.download_button(
-                    label="Download JSON",
-                    data=json_str,
-                    file_name=f'icu_workflow_analysis_{current_time}.json',
-                    mime='application/json'
+                report_data["recommendations"] = format_recommendations(
+                    efficiency, cognitive_load, burnout_risk,
+                    interrupt_time + admission_time + critical_time
                 )
 
-            with st.expander("Preview Export Data"):
-                st.dataframe(df, use_container_width=True)
+                current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-                st.markdown("### Recommendations")
-                for rec in report_data["recommendations"]:
-                    st.markdown(f"- {rec}")
+                df = pd.DataFrame({
+                    "Metric": list(report_data["metrics"].keys()) + list(report_data["time_analysis"].keys()),
+                    "Value": list(report_data["metrics"].values()) + list(report_data["time_analysis"].values())
+                })
+                csv = df.to_csv(index=False).encode('utf-8')
+                json_str = json.dumps(report_data, indent=2).encode('utf-8')
 
-            # Add after the existing export section, before the final except block
-            st.markdown("### Interactive Historical Data Export")
-            st.markdown("""
-                Select date range and metrics to create a custom historical analysis report.
-                You can visualize the data before exporting.
-            """)
+                col1, col2 = st.columns(2)
 
-            # Date range selection
-            date_col1, date_col2 = st.columns(2)
-            with date_col1:
-                start_date = st.date_input(
-                    "Start Date",
-                    value=pd.Timestamp.now().date() - pd.Timedelta(days=30),
-                    help="Select start date for historical data"
+                with col1:
+                    st.download_button(
+                        label="Download CSV",
+                        data=csv,
+                        file_name=f'icu_workflow_analysis_{current_time}.csv',
+                        mime='text/csv'
+                    )
+
+                with col2:
+                    st.download_button(
+                        label="Download JSON",
+                        data=json_str,
+                        file_name=f'icu_workflow_analysis_{current_time}.json',
+                        mime='application/json'
+                    )
+
+                with st.expander("Preview Export Data"):
+                    st.dataframe(df, use_container_width=True)
+                    st.markdown("#### Recommendations")
+                    for rec in report_data["recommendations"]:
+                        st.markdown(f"- {rec}")
+
+            else:  # Historical Analysis Report
+                st.markdown("#### Historical Analysis Report")
+                st.markdown("""
+                    Select date range and metrics to create a custom historical analysis report.
+                    You can visualize the data before exporting.
+                """)
+
+                # Date range selection
+                date_col1, date_col2 = st.columns(2)
+                with date_col1:
+                    start_date = st.date_input(
+                        "Start Date",
+                        value=pd.Timestamp.now().date() - pd.Timedelta(days=30),
+                        help="Select start date for historical data"
+                    )
+                with date_col2:
+                    end_date = st.date_input(
+                        "End Date",
+                        value=pd.Timestamp.now().date(),
+                        help="Select end date for historical data"
+                    )
+
+                # Metric selection
+                available_metrics = [
+                    "Efficiency", "Cognitive Load", "Burnout Risk",
+                    "Interruptions/Provider", "Time Lost",
+                    "Admission Time", "Critical Time"
+                ]
+                selected_metrics = st.multiselect(
+                    "Select Metrics to Include",
+                    available_metrics,
+                    default=["Efficiency", "Cognitive Load", "Burnout Risk"],
+                    help="Choose which metrics to include in the export"
                 )
-            with date_col2:
-                end_date = st.date_input(
-                    "End Date",
-                    value=pd.Timestamp.now().date(),
-                    help="Select end date for historical data"
-                )
 
-            # Metric selection
-            available_metrics = [
-                "Efficiency", "Cognitive Load", "Burnout Risk",
-                "Interruptions/Provider", "Time Lost",
-                "Admission Time", "Critical Time"
-            ]
-            selected_metrics = st.multiselect(
-                "Select Metrics to Include",
-                available_metrics,
-                default=["Efficiency", "Cognitive Load", "Burnout Risk"],
-                help="Choose which metrics to include in the export"
-            )
+                if st.button("Generate Report"):
+                    # Query historical data with date filter
+                    historical_records = get_historical_records(db)
+                    if historical_records:
+                        hist_df = pd.DataFrame([{
+                            'Timestamp': record.timestamp,
+                            'Efficiency': record.efficiency,
+                            'Cognitive Load': record.cognitive_load,
+                            'Burnout Risk': record.burnout_risk,
+                            'Interruptions/Provider': record.interrupts_per_provider,
+                            'Time Lost': record.time_lost,
+                            'Admission Time': record.admission_time,
+                            'Critical Time': record.critical_time
+                        } for record in historical_records])
 
-            if st.button("Generate Report"):
-                # Query historical data with date filter
-                historical_records = get_historical_records(db)
-                if historical_records:
-                    hist_df = pd.DataFrame([{
-                        'Timestamp': record.timestamp,
-                        'Efficiency': record.efficiency,
-                        'Cognitive Load': record.cognitive_load,
-                        'Burnout Risk': record.burnout_risk,
-                        'Interruptions/Provider': record.interrupts_per_provider,
-                        'Time Lost': record.time_lost,
-                        'Admission Time': record.admission_time,
-                        'Critical Time': record.critical_time
-                    } for record in historical_records])
+                        # Apply date filter
+                        mask = (hist_df['Timestamp'].dt.date >= start_date) & (hist_df['Timestamp'].dt.date <= end_date)
+                        filtered_df = hist_df.loc[mask]
 
-                    # Apply date filter
-                    mask = (hist_df['Timestamp'].dt.date >= start_date) & (hist_df['Timestamp'].dt.date <= end_date)
-                    filtered_df = hist_df.loc[mask]
-
-                    if len(filtered_df) > 0:
-                        st.markdown("### Data Preview")
-                        st.dataframe(
-                            filtered_df[['Timestamp'] + selected_metrics],
-                            use_container_width=True
-                        )
-
-                        # Visualization of selected metrics
-                        st.markdown("### Trend Analysis")
-                        st.line_chart(
-                            filtered_df.set_index('Timestamp')[selected_metrics]
-                        )
-
-                        # Statistical summary
-                        st.markdown("### Statistical Summary")
-                        st.dataframe(
-                            filtered_df[selected_metrics].describe(),
-                            use_container_width=True
-                        )
-
-                        # Export options
-                        st.markdown("### Export Options")
-                        export_col1, export_col2, export_col3 = st.columns(3)
-
-                        # Prepare export data
-                        export_df = filtered_df[['Timestamp'] + selected_metrics].copy()
-                        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-                        with export_col1:
-                            csv = export_df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="Download CSV",
-                                data=csv,
-                                file_name=f'historical_analysis_{current_time}.csv',
-                                mime='text/csv'
+                        if len(filtered_df) > 0:
+                            st.markdown("#### Data Preview")
+                            st.dataframe(
+                                filtered_df[['Timestamp'] + selected_metrics],
+                                use_container_width=True
                             )
 
-                        with export_col2:
-                            json_str = export_df.to_json(orient='records', date_format='iso').encode('utf-8')
-                            st.download_button(
-                                label="Download JSON",
-                                data=json_str,
-                                file_name=f'historical_analysis_{current_time}.json',
-                                mime='application/json'
+                            # Visualization of selected metrics
+                            st.markdown("#### Trend Analysis")
+                            st.line_chart(
+                                filtered_df.set_index('Timestamp')[selected_metrics]
                             )
 
-                        with export_col3:
-                            # Excel export with formatting
-                            excel_buffer = BytesIO()
-                            with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-                                export_df.to_excel(writer, sheet_name='Historical Data', index=False)
-                                workbook = writer.book
-                                worksheet = writer.sheets['Historical Data']
-
-                                # Add formatting
-                                header_format = workbook.add_format({
-                                    'bold': True,
-                                    'fg_color': '#D7E4BC',
-                                    'border': 1
-                                })
-
-                                for col_num, value in enumerate(export_df.columns.values):
-                                    worksheet.write(0, col_num, value, header_format)
-                                    worksheet.set_column(col_num, col_num, 15)
-
-                            excel_buffer.seek(0)
-                            st.download_button(
-                                label="Download Excel",
-                                data=excel_buffer,
-                                file_name=f'historical_analysis_{current_time}.xlsx',
-                                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                            # Statistical summary
+                            st.markdown("#### Statistical Summary")
+                            st.dataframe(
+                                filtered_df[selected_metrics].describe(),
+                                use_container_width=True
                             )
+
+                            # Export options
+                            st.markdown("#### Export Options")
+                            export_col1, export_col2, export_col3 = st.columns(3)
+
+                            # Prepare export data
+                            export_df = filtered_df[['Timestamp'] + selected_metrics].copy()
+                            current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                            with export_col1:
+                                csv = export_df.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="Download CSV",
+                                    data=csv,
+                                    file_name=f'historical_analysis_{current_time}.csv',
+                                    mime='text/csv'
+                                )
+
+                            with export_col2:
+                                json_str = export_df.to_json(orient='records', date_format='iso').encode('utf-8')
+                                st.download_button(
+                                    label="Download JSON",
+                                    data=json_str,
+                                    file_name=f'historical_analysis_{current_time}.json',
+                                    mime='application/json'
+                                )
+
+                            with export_col3:
+                                # Excel export with formatting
+                                excel_buffer = BytesIO()
+                                with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                                    export_df.to_excel(writer, sheet_name='Historical Data', index=False)
+                                    workbook = writer.book
+                                    worksheet = writer.sheets['Historical Data']
+
+                                    # Add formatting
+                                    header_format = workbook.add_format({
+                                        'bold': True,
+                                        'fg_color': '#D7E4BC',
+                                        'border': 1
+                                    })
+
+                                    for col_num, value in enumerate(export_df.columns.values):
+                                        worksheet.write(0, col_num, value, header_format)
+                                        worksheet.set_column(col_num, col_num, 15)
+
+                                excel_buffer.seek(0)
+                                st.download_button(
+                                    label="Download Excel",
+                                    data=excel_buffer,
+                                    file_name=f'historical_analysis_{current_time}.xlsx',
+                                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                )
+                        else:
+                            st.warning("No data available for the selected date range.")
                     else:
-                        st.warning("No data available for the selected date range.")
-                else:
-                    st.info("No historical data available yet. Data will be collected as you use the application.")
+                        st.info("No historical data available yet. Data will be collected as you use the application.")
 
         except Exception as e:
             st.error(f"An error occurred while processing the data: {str(e)}")
