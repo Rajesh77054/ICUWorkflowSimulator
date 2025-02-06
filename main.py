@@ -151,14 +151,14 @@ def main():
             )
         with metric_col2:
             st.metric(
-                "Hours Lost to Interruptions",
-                f"{time_lost:.1f}",
+                "Time Lost to Interruptions",
+                f"{time_lost:.0f} min",
                 help="""
-                Total provider hours lost handling interruptions during the shift.
-                • Calculation: Sum of all interruption durations
-                • Normal range: 2-4 hours
-                • Warning level: >5 hours
-                • Critical level: >6 hours
+                Total provider time lost handling interruptions during the shift.
+                • Calculation: Sum of all interruption durations in minutes
+                • Normal range: 120-240 minutes
+                • Warning level: >300 minutes
+                • Critical level: >360 minutes
 
                 Excessive time lost to interruptions may indicate need for workflow optimization.
                 """
