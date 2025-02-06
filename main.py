@@ -139,17 +139,61 @@ def main():
             st.metric(
                 "Interruptions per Provider",
                 f"{interrupts_per_provider:.1f}/shift",
-                help=f"Average interruption duration: {sum(simulator.interruption_times.values())/len(simulator.interruption_times):.1f} min"
+                help="""
+                Average number of interruptions each provider experiences during a shift.
+                • Calculation: Total interruptions / Number of providers
+                • Normal range: 20-40 per shift
+                • Warning level: >50 per shift
+                • Critical level: >70 per shift
+
+                High interruption rates can significantly impact provider efficiency and increase burnout risk.
+                """
             )
         with metric_col2:
-            st.metric("Hours Lost to Interruptions", f"{time_lost:.1f}")
+            st.metric(
+                "Hours Lost to Interruptions",
+                f"{time_lost:.1f}",
+                help="""
+                Total provider hours lost handling interruptions during the shift.
+                • Calculation: Sum of all interruption durations
+                • Normal range: 2-4 hours
+                • Warning level: >5 hours
+                • Critical level: >6 hours
+
+                Excessive time lost to interruptions may indicate need for workflow optimization.
+                """
+            )
         with metric_col3:
-            st.metric("Provider Efficiency", f"{efficiency:.1%}")
+            st.metric(
+                "Provider Efficiency",
+                f"{efficiency:.1%}",
+                help="""
+                Percentage of time providers can dedicate to primary patient care duties.
+                • Calculation: (Total shift time - Interruption time) / Total shift time
+                • Target range: >85%
+                • Warning level: <75%
+                • Critical level: <65%
+
+                Lower efficiency may indicate need for interruption management strategies.
+                """
+            )
         with metric_col4:
             st.metric(
                 "Cognitive Load",
                 f"{cognitive_load:.0f}/100",
-                help="Based on interruptions, critical events, and workload"
+                help="""
+                Estimated mental workload based on multiple factors:
+                • Interruption frequency
+                • Critical event management
+                • Patient complexity
+                • Total workload
+
+                Scale interpretation:
+                • 0-40: Sustainable workload
+                • 41-70: Moderate stress level
+                • 71-85: High stress - Consider additional support
+                • >85: Critical level - Immediate intervention needed
+                """
             )
 
         st.markdown("### Time Impact Analysis (minutes per shift)")
@@ -159,19 +203,51 @@ def main():
             st.metric(
                 "Interruption Time",
                 f"{interrupt_time:.0f}",
-                help="Total minutes spent handling interruptions per shift"
+                help="""
+                Total minutes spent handling various types of interruptions:
+                • Nursing questions
+                • Exam callbacks
+                • Peer consultations
+
+                Impact levels:
+                • <120 min: Manageable
+                • 120-180 min: Moderate impact
+                • >180 min: Significant impact - Consider workflow changes
+
+                Calculation: Sum of (frequency × average duration) for each interruption type
+                """
             )
         with impact_col2:
             st.metric(
                 "Admission/Transfer Time",
                 f"{admission_time:.0f}",
-                help=f"Simple admission: {simulator.admission_times['simple']} min\nComplex admission: {simulator.admission_times['complex']} min"
+                help=f"""
+                Time dedicated to patient movement activities:
+                • Simple admission: {simulator.admission_times['simple']} min
+                • Complex admission: {simulator.admission_times['complex']} min
+                • Consult: {simulator.admission_times['consult']} min
+                • Transfer: {simulator.admission_times['transfer']} min
+
+                Total time should be distributed evenly among available providers.
+                Consider additional coverage when total time exceeds 4 hours per provider.
+                """
             )
         with impact_col3:
             st.metric(
                 "Critical Event Time",
                 f"{critical_time:.0f}",
-                help=f"Based on {simulator.critical_event_time} minutes per critical event"
+                help=f"""
+                Time spent managing critical patient events:
+                • Average duration per event: {simulator.critical_event_time} min
+                • Daily impact shown here
+
+                Management strategies:
+                • <60 min: Regular staffing adequate
+                • 60-120 min: Consider backup coverage
+                • >120 min: Additional provider likely needed
+
+                Critical events take priority and may significantly impact other duties.
+                """
             )
 
 
@@ -370,6 +446,29 @@ def main():
             'Weight': [detailed_burnout['component_weights'][k] for k in detailed_burnout['risk_components'].keys()]
         })
 
+        # Add tooltips to the dataframe columns
+        st.markdown("""
+        <style>
+        [data-testid="stMetricLabel"] {
+            cursor: help;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        ℹ️ **Understanding Risk Components**
+
+        This analysis breaks down various factors contributing to provider stress and burnout:
+
+        • **Interruption Risk**: Impact of frequency and duration of workflow interruptions
+        • **Workload Risk**: Assessment of patient care and administrative duties
+        • **Critical Events Risk**: Stress from managing high-acuity situations
+        • **Efficiency Risk**: Impact of workflow disruptions on productivity
+        • **Cognitive Load Risk**: Mental burden from multiple simultaneous responsibilities
+
+        Each component is weighted based on its relative impact on provider wellbeing.
+        """)
+
         st.dataframe(
             component_data.style.format({
                 'Risk Level': '{:.1%}',
@@ -377,7 +476,6 @@ def main():
             }),
             use_container_width=True
         )
-
 
         st.markdown("### Recommendations")
         if burnout_risk > 0.7:
