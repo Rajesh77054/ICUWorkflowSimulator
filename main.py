@@ -109,7 +109,8 @@ def main():
 
         interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
             nursing_q, exam_callbacks, peer_interrupts,
-            admissions, consults, transfers, critical_events_per_day
+            admissions, consults, transfers, critical_events_per_day,
+            providers  # Add providers parameter
         )
 
         efficiency = simulator.simulate_provider_efficiency(
