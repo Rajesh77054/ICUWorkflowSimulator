@@ -132,21 +132,20 @@ class WorkflowSimulator:
 
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, 
                             admissions, consults, transfers, critical_events_per_day):
-        # Calculate total time spent on interruptions
+        """Calculate time impacts for different activities during a shift"""
+        # Calculate total interruption time for the full shift (12 hours)
         interrupt_time = (
             nursing_q * self.interruption_times['nursing_question'] +
             exam_callbacks * self.interruption_times['exam_callback'] +
             peer_interrupts * self.interruption_times['peer_interrupt']
-        )
+        ) * 12  # Multiply by 12 for full shift duration
 
-        # Calculate time spent on admissions and transfers (assume 70% simple, 30% complex)
         admission_time = (
             admissions * (0.7 * self.admission_times['simple'] + 0.3 * self.admission_times['complex']) +
             consults * self.admission_times['consult'] +
             transfers * self.admission_times['transfer']
         )
 
-        # Calculate time spent on critical events
         critical_time = critical_events_per_day * self.critical_event_time
 
         return interrupt_time, admission_time, critical_time

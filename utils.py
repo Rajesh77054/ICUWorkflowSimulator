@@ -10,24 +10,25 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     - interrupts_per_provider: number of interruptions per provider per shift
     - time_lost: total minutes lost to interruptions per shift
     """
-    # Calculate for 12-hour dayshift
-    total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12  # per 12-hour dayshift
+    simulator = WorkflowSimulator()
+
+    # Calculate total interruptions per shift (12 hours)
+    total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12
     per_provider = total_interrupts / providers
 
-    # Calculate time lost in minutes
-    simulator = WorkflowSimulator()
+    # Calculate time lost in minutes for entire shift
     time_lost = (
-        nursing_q * simulator.interruption_times['nursing_question'] + 
-        exam_callbacks * simulator.interruption_times['exam_callback'] + 
+        nursing_q * simulator.interruption_times['nursing_question'] +
+        exam_callbacks * simulator.interruption_times['exam_callback'] +
         peer_interrupts * simulator.interruption_times['peer_interrupt']
-    ) * 12  # Total minutes for 12-hour shift
+    ) * 12  # Multiply by 12 for full shift duration
 
     return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
     # Calculate total time required for all tasks using current simulator settings
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                0.3 * simulator.admission_times['complex'])
+                                   0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
