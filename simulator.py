@@ -1,9 +1,8 @@
-<replit_final_file>
 import numpy as np
 
 class WorkflowSimulator:
     def __init__(self):
-        # Default time durations in minutes - these can be updated through the UI
+        # Default time durations in minutes
         self.interruption_times = {
             'nursing_question': 2,    # median of 1-3 minutes
             'exam_callback': 7.5,     # median of 5-10 minutes
@@ -36,27 +35,40 @@ class WorkflowSimulator:
         if 'critical_event_time' in new_settings:
             self.critical_event_time = new_settings['critical_event_time']
 
-    def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, 
+    def calculate_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts):
+        """Calculate total interruption time for a 12-hour shift
+        Returns: Total minutes lost to interruptions
+        """
+        hourly_time = (
+            nursing_q * self.interruption_times['nursing_question'] +
+            exam_callbacks * self.interruption_times['exam_callback'] +
+            peer_interrupts * self.interruption_times['peer_interrupt']
+        )
+        return hourly_time * 12  # Convert to full shift duration
+
+    def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts,
                             admissions, consults, transfers, critical_events_per_day):
         """Calculate time impacts for different activities during a shift"""
-        from utils import calculate_interruption_time
-
-        # Use shared calculation function for interrupt_time
-        interrupt_time = calculate_interruption_time(
-            nursing_q, exam_callbacks, peer_interrupts, self
+        # Calculate interruption time using the shared method
+        interrupt_time = self.calculate_interruption_time(
+            nursing_q, exam_callbacks, peer_interrupts
         )
 
+        # Calculate admission and transfer time
         admission_time = (
             admissions * (0.7 * self.admission_times['simple'] + 0.3 * self.admission_times['complex']) +
             consults * self.admission_times['consult'] +
             transfers * self.admission_times['transfer']
         )
 
+        # Calculate critical event time
         critical_time = critical_events_per_day * self.critical_event_time
 
         return interrupt_time, admission_time, critical_time
 
-    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, critical_events_per_day, shift_hours=12):
+    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, 
+                                   critical_events_per_day, shift_hours=12):
+        """Calculate provider efficiency considering all factors"""
         base_efficiency = 1.0
         interruption_impact = 0.05
         workload_impact = 0.1
@@ -85,7 +97,24 @@ class WorkflowSimulator:
 
         return max(0.3, base_efficiency - regular_efficiency_loss - efficiency_reduction - rounding_impact)
 
-    def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour, 
+    def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
+        """Calculate simple burnout risk metric"""
+        # Calculate risk components consistently with detailed calculation
+        interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
+        workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
+        critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
+
+        # Add consistent rounding inefficiency impact
+        rounding_overhead = 0.8  # 80% overhead during rounds
+        data_collection_inefficiency = 0.3  # 30% inefficiency
+        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
+
+        # Use same weighting as detailed calculation
+        base_risk = min(1.0, (interruption_factor * 0.2) + (workload_factor * 0.25) +
+                       (critical_factor * 0.2) + (rounding_impact * 0.35))
+        return base_risk
+
+    def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour,
                                       critical_events_per_day, efficiency, cognitive_load):
         """Calculate detailed burnout risk metrics"""
         # Base factors from previous calculation
@@ -93,14 +122,14 @@ class WorkflowSimulator:
         workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
         critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
 
-        # New factors
+        # Additional factors
         efficiency_impact = (1 - efficiency) * 0.5  # Impact of reduced efficiency
         cognitive_impact = (cognitive_load / 100) * 0.4  # Impact of cognitive load
 
-        # Calculate data aggregation impact during rounds (9-11 AM)
+        # Calculate rounding inefficiency impact
         rounding_overhead = 0.8  # 80% overhead during rounds
-        data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
-        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor for 2-hour period
+        data_collection_inefficiency = 0.3  # 30% inefficiency
+        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
 
         # Calculate individual risk components
         risk_components = {
@@ -135,24 +164,8 @@ class WorkflowSimulator:
             "component_weights": weights
         }
 
-    def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
-        # Calculate risk components consistently with detailed calculation
-        interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
-        workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
-        critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
-
-        # Add consistent rounding inefficiency impact
-        rounding_overhead = 0.8  # 80% overhead during rounds
-        data_collection_inefficiency = 0.3  # 30% inefficiency
-        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
-
-        # Use same weighting as detailed calculation
-        base_risk = min(1.0, (interruption_factor * 0.2) + (workload_factor * 0.25) + 
-                       (critical_factor * 0.2) + (rounding_impact * 0.35))
-        return base_risk
-
     def calculate_cognitive_load(self, interruptions, critical_events_per_day, admissions, workload):
-        # Scale from 0-100
+        """Calculate cognitive load score (0-100)"""
         base_load = 30  # baseline cognitive load
 
         # Factor in time impact of interruptions using actual duration settings
@@ -175,10 +188,10 @@ class WorkflowSimulator:
         admission_scale = 8   # 8 points per hour of admissions
 
         total_load = (
-            base_load + 
-            (interrupt_factor * interrupt_scale) + 
-            (critical_factor * critical_scale) + 
-            (admission_factor * admission_scale) + 
+            base_load +
+            (interrupt_factor * interrupt_scale) +
+            (critical_factor * critical_scale) +
+            (admission_factor * admission_scale) +
             workload_factor
         )
 
