@@ -4,6 +4,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 from simulator import WorkflowSimulator
 
+def calculate_interruption_time(nursing_q, exam_callbacks, peer_interrupts, simulator):
+    """Calculate total interruption time for a 12-hour shift
+    Returns: Total minutes lost to interruptions
+    """
+    return (
+        nursing_q * simulator.interruption_times['nursing_question'] +
+        exam_callbacks * simulator.interruption_times['exam_callback'] +
+        peer_interrupts * simulator.interruption_times['peer_interrupt']
+    ) * 12  # Multiply by 12 for full shift duration
+
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
     """Calculate interruption metrics
     Returns:
@@ -16,12 +26,8 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12
     per_provider = total_interrupts / providers
 
-    # Calculate time lost in minutes for entire shift
-    time_lost = (
-        nursing_q * simulator.interruption_times['nursing_question'] +
-        exam_callbacks * simulator.interruption_times['exam_callback'] +
-        peer_interrupts * simulator.interruption_times['peer_interrupt']
-    ) * 12  # Multiply by 12 for full shift duration
+    # Use shared calculation function
+    time_lost = calculate_interruption_time(nursing_q, exam_callbacks, peer_interrupts, simulator)
 
     return per_provider, time_lost
 
