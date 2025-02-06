@@ -35,9 +35,10 @@ class WorkflowSimulator:
         if 'critical_event_time' in new_settings:
             self.critical_event_time = new_settings['critical_event_time']
 
-    def calculate_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts):
-        """Calculate total interruption time for a 12-hour shift
-        Returns: Total minutes lost to interruptions
+    def calculate_individual_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts):
+        """Calculate interruption time for a single provider during a 12-hour shift
+        Input frequencies are per hour per provider
+        Returns: Total minutes lost to interruptions for one provider
         """
         hourly_time = (
             nursing_q * self.interruption_times['nursing_question'] +
@@ -46,12 +47,22 @@ class WorkflowSimulator:
         )
         return hourly_time * 12  # Convert to full shift duration
 
-    def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts,
-                            admissions, consults, transfers, critical_events_per_day):
-        """Calculate time impacts for different activities during a shift"""
-        # Calculate interruption time using the shared method
-        interrupt_time = self.calculate_interruption_time(
+    def calculate_total_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts, providers):
+        """Calculate total organizational interruption time during a 12-hour shift
+        Input frequencies are per hour per provider
+        Returns: Total minutes lost to interruptions across all providers
+        """
+        individual_time = self.calculate_individual_interruption_time(
             nursing_q, exam_callbacks, peer_interrupts
+        )
+        return individual_time * providers  # Total organizational impact
+
+    def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts,
+                            admissions, consults, transfers, critical_events_per_day, providers):
+        """Calculate time impacts for different activities during a shift"""
+        # Calculate total organizational interruption time
+        interrupt_time = self.calculate_total_interruption_time(
+            nursing_q, exam_callbacks, peer_interrupts, providers
         )
 
         # Calculate admission and transfer time

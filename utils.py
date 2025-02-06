@@ -6,24 +6,26 @@ from simulator import WorkflowSimulator
 
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
     """Calculate interruption metrics
+    Input frequencies are per hour per provider
     Returns:
-    - interrupts_per_provider: number of interruptions per shift
-    - time_lost: total minutes lost to interruptions per shift
+    - interrupts_per_provider: number of interruptions per provider per shift
+    - time_lost: total organizational minutes lost to interruptions per shift
     """
     simulator = WorkflowSimulator()
 
-    # Calculate total interruptions per shift (12 hours)
-    total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12
-    per_provider = total_interrupts / providers
+    # Calculate total interruptions per provider per shift (12 hours)
+    # Since inputs are per hour per provider, multiply by 12 for full shift
+    per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
 
-    # Use simulator's calculation method for consistency
-    time_lost = simulator.calculate_interruption_time(
-        nursing_q, exam_callbacks, peer_interrupts
+    # Calculate total organizational time lost using simulator's method
+    time_lost = simulator.calculate_total_interruption_time(
+        nursing_q, exam_callbacks, peer_interrupts, providers
     )
 
     return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
+    """Calculate workload per provider"""
     # Calculate total time required for all tasks using current simulator settings
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                    0.3 * simulator.admission_times['complex'])
