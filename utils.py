@@ -33,7 +33,15 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
     
-    total_required_minutes = admission_time + consult_time + transfer_time + critical_time
+    # Include interruption time in total workload
+    interruption_time = simulator.calculate_total_interruption_time(
+        nursing_q=5.0,  # Default values from main.py
+        exam_callbacks=3.0,
+        peer_interrupts=2.0,
+        providers=providers
+    )
+    
+    total_required_minutes = admission_time + consult_time + transfer_time + critical_time + interruption_time
     available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
     
     # Calculate relative workload (>1.0 indicates overload)
