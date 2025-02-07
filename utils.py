@@ -116,14 +116,14 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
 
     fig.update_layout(
         title='Provider Time Allocation (12-hour shift)',
-        height=500,  # Reduced height to minimize whitespace
+        height=600,  # Increased container height
         showlegend=True,
-        margin=dict(t=50, b=50, l=50, r=50),  # Increased left/right margins
+        margin=dict(t=50, b=100, l=100, r=100),  # Increased bottom margin for label
         annotations=[dict(
             text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
             showarrow=False,
             x=0.5,
-            y=-0.2,  # Adjusted for less whitespace
+            y=-0.25,  # Adjusted position relative to container
             xanchor='center',
             yanchor='top',
             font=dict(size=14),
