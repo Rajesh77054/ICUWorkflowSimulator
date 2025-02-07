@@ -118,7 +118,7 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
         title='Provider Time Allocation (12-hour shift)',
         height=500,
         showlegend=True,
-        margin=dict(t=100, b=60, l=20, r=20),  # Increased top margin to match reference chart
+        margin=dict(t=100, b=100, l=20, r=20),  # Increased bottom margin to prevent label clipping
         annotations=[dict(
             text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
             showarrow=False,
