@@ -336,18 +336,21 @@ def main():
             <div class="impact-grid">
                 <div class="impact-card">
                     <h4>Interruption Impact</h4>
-                    <p>Total time: {interrupt_time:.0f} min/shift</p>
+                    <p>Organization time: {interrupt_time:.0f} min/shift</p>
+                    <p>Per provider: {(interrupt_time/providers):.0f} min/provider</p>
                     <p>Avg duration: {(interrupt_time/max(1, total_interrupts)):.1f} min/interruption</p>
                 </div>
                 <div class="impact-card">
                     <h4>Critical Events Impact</h4>
                     <p>Time per event: {simulator.critical_event_time} min</p>
-                    <p>Daily impact: {critical_time:.0f} min/shift</p>
+                    <p>Organization impact: {critical_time:.0f} min/shift</p>
+                    <p>Per provider: {(critical_time/providers):.0f} min/provider</p>
                 </div>
                 <div class="impact-card">
                     <h4>Admission/Transfer Load</h4>
-                    <p>Total time: {admission_time:.0f} min/shift</p>
+                    <p>Organization time: {admission_time:.0f} min/shift</p>
                     <p>Per provider: {(admission_time/providers):.0f} min/provider</p>
+                    <p><i>Note: Times reflect parallel work across providers</i></p>
                 </div>
             </div>
             """,
