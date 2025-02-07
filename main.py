@@ -155,13 +155,13 @@ def main():
                 "Productivity Impact (Interruptions)",
                 f"{time_lost:.0f} min",
                 help="""
-                Total provider time lost handling interruptions during the shift.
-                • Calculation: Sum of all interruption durations in minutes
+                Base time lost handling interruptions during the shift.
+                • Calculation: Sum of (frequency × duration) for each interruption type
                 • Normal range: 120-240 minutes
                 • Warning level: >300 minutes
                 • Critical level: >360 minutes
 
-                Excessive time lost to interruptions may indicate need for workflow optimization.
+                This represents the direct impact on productivity, excluding overhead factors.
                 """
             )
         with metric_col3:
@@ -205,17 +205,17 @@ def main():
                 "Time Allocation (Interruptions)",
                 f"{interrupt_time:.0f}",
                 help="""
-                Total minutes spent handling various types of interruptions:
-                • Nursing questions
-                • Exam callbacks
-                • Peer consultations
-
+                Total allocated time for interruption handling, including overhead:
+                • Base interruption time
+                • Rounding period overhead (80%)
+                • Data collection inefficiency
+                
                 Impact levels:
                 • <120 min: Manageable
                 • 120-180 min: Moderate impact
-                • >180 min: Significant impact - Consider workflow changes
+                • >180 min: Significant impact
 
-                Calculation: Sum of (frequency × average duration) for each interruption type
+                This represents the full time allocation including all overhead factors.
                 """
             )
         with impact_col2:
