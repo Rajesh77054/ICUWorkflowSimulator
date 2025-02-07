@@ -133,39 +133,39 @@ def main():
             workload
         )
 
-        st.markdown("### Time Impact Analysis (minutes per shift)")
-        st.markdown("Primary metrics showing actual time allocation during shifts:")
+        st.markdown("### Core Workflow Metrics")
+        st.markdown("Direct measurements of workflow activities and time allocation:")
         
-        impact_col1, impact_col2, impact_col3, impact_col4 = st.columns(4)
+        primary_col1, primary_col2, primary_col3, primary_col4 = st.columns(4)
 
-        with impact_col1:
+        with primary_col1:
             st.metric(
                 "Interruptions per Provider",
                 f"{interrupts_per_provider:.1f}/shift",
                 help="""
-                Average number of interruptions each provider experiences during a shift.
-                • Calculation: Total interruptions / Number of providers
+                Direct measure of workflow disruptions:
+                • Total interruptions / Number of providers
                 • Normal range: 20-40 per shift
                 • Warning level: >50 per shift
                 • Critical level: >70 per shift
                 """
             )
-        with impact_col2:
+        with primary_col2:
             st.metric(
-                "Interruption Time",
-                f"{interrupt_time:.0f}",
+                "Time Allocation (Interruptions)",
+                f"{interrupt_time:.0f} min",
                 help="""
-                Total time spent handling interruptions:
-                • Calculation: Sum of (frequency × duration × 12 hours × providers)
-                • Includes rounding period overhead
+                Total provider time on interruptions:
+                • Per shift across all providers
+                • Based on actual frequency × duration
                 • <120 min: Manageable
                 • >180 min: Significant impact
                 """
             )
-        with impact_col3:
+        with primary_col3:
             st.metric(
                 "Admission/Transfer Time",
-                f"{admission_time:.0f}",
+                f"{admission_time:.0f} min",
                 help=f"""
                 Time for patient movement activities:
                 • Simple admission: {simulator.admission_times['simple']} min
@@ -174,10 +174,10 @@ def main():
                 • Transfer: {simulator.admission_times['transfer']} min
                 """
             )
-        with impact_col4:
+        with primary_col4:
             st.metric(
                 "Critical Event Time",
-                f"{critical_time:.0f}",
+                f"{critical_time:.0f} min",
                 help=f"""
                 Time managing critical events:
                 • Average duration: {simulator.critical_event_time} min
@@ -187,44 +187,32 @@ def main():
                 """
             )
 
-        st.markdown("### Derived Metrics")
-        st.markdown("Secondary metrics calculated from time allocations:")
-        derived_col1, derived_col2, derived_col3 = st.columns(3)
+        st.markdown("### Impact Analysis")
+        st.markdown("Calculated metrics showing overall workflow impact:")
+        impact_col1, impact_col2 = st.columns(2)
 
-        with derived_col1:
-            st.metric(
-                "Provider Efficiency",
-                f"{efficiency:.1%}",
-                help="""
-                Available time for primary duties:
-                • Based on total time minus interruptions
-                • Accounts for critical event impact
-                • Target: >85%
-                • Warning: <75%
-                """
-            )
-        with derived_col2:
+        with impact_col1:
             total_time = interrupt_time + admission_time + critical_time
             st.metric(
                 "Total Time Impact",
                 f"{total_time:.0f} min",
                 help="""
-                Sum of all time allocations:
-                • Total minutes across all activities
+                Total time allocation across activities:
+                • Sum of all measured time components
                 • Warning if exceeds shift duration (720 min)
-                • Indicates workload sustainability
+                • Key indicator of workload sustainability
                 """
             )
-        with derived_col3:
+        with impact_col2:
+            time_per_provider = total_time / providers
             st.metric(
-                "Cognitive Load Score",
-                f"{cognitive_load:.0f}/100",
+                "Average Time per Provider",
+                f"{time_per_provider:.0f} min",
                 help="""
-                Workload intensity score:
-                • Based on interruption frequency
-                • Weighted by critical events
-                • <40: Sustainable
-                • >70: High stress
+                Individual provider time allocation:
+                • Total time divided by provider count
+                • Indicates individual workload level
+                • Warning if exceeds 360 min per shift
                 """
             )
 
