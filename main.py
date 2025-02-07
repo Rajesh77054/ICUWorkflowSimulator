@@ -99,25 +99,33 @@ def main():
             # Provider View
             st.markdown("### Current Shift Overview")
 
-            # Key Metrics for Providers
-            col1, col2, col3 = st.columns(3)
-            with col1:
+            # Core Workflow Metrics Section
+            st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
+            
+            metrics_cols = st.columns(4)
+            with metrics_cols[0]:
                 st.metric(
-                    "Your Interruptions",
+                    "Interruptions/Provider",
                     f"{interrupts_per_provider:.1f}/shift",
                     help="Direct measure of workflow disruptions per provider"
                 )
-            with col2:
+            with metrics_cols[1]:
+                st.metric(
+                    "Time Lost to Interruptions",
+                    f"{time_lost:.1f} min",
+                    help="Total organizational time lost to interruptions"
+                )
+            with metrics_cols[2]:
+                st.metric(
+                    "Provider Efficiency",
+                    f"{efficiency:.0%}",
+                    help="Current workflow efficiency"
+                )
+            with metrics_cols[3]:
                 st.metric(
                     "Cognitive Load",
                     f"{cognitive_load:.0f}%",
                     help="Mental workload based on current conditions"
-                )
-            with col3:
-                st.metric(
-                    "Efficiency Score",
-                    f"{efficiency:.0%}",
-                    help="Current workflow efficiency"
                 )
 
             # Visual Timeline
