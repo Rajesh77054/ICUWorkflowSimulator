@@ -152,7 +152,7 @@ def main():
             )
         with metric_col2:
             st.metric(
-                "Time Lost to Interruptions",
+                "Productivity Impact (Interruptions)",
                 f"{time_lost:.0f} min",
                 help="""
                 Total provider time lost handling interruptions during the shift.
@@ -202,7 +202,7 @@ def main():
 
         with impact_col1:
             st.metric(
-                "Interruption Time",
+                "Time Allocation (Interruptions)",
                 f"{interrupt_time:.0f}",
                 help="""
                 Total minutes spent handling various types of interruptions:
