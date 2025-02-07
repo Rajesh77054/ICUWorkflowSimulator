@@ -28,7 +28,7 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     """Calculate workload per provider"""
     # Calculate total time required for all tasks using current simulator settings
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                   0.3 * simulator.admission_times['complex'])
+                                  0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
@@ -117,7 +117,8 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
     fig.update_layout(
         title=dict(
             text='Provider Time Allocation (12-hour shift)',
-            x=0.5,
+            x=0,  # Left align the title
+            xanchor='left',  # Anchor point for x position
             font=dict(size=16)
         ),
         height=500,
