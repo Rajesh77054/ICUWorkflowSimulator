@@ -5,24 +5,28 @@ import plotly.graph_objects as go
 from simulator import WorkflowSimulator
 
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
-    """Calculate interruption metrics
-    Input frequencies are per hour per provider
-    Returns:
-    - interrupts_per_provider: number of interruptions per provider per shift
-    - time_lost: total organizational minutes lost to interruptions per shift
-    """
-    simulator = WorkflowSimulator()
+        """Calculate interruption metrics using actual input values
+        Input frequencies are per hour per provider
+        Returns:
+        - interrupts_per_provider: number of interruptions per provider per shift
+        - time_lost: total organizational minutes lost to interruptions per shift
+        """
+        simulator = WorkflowSimulator()
 
-    # Calculate total interruptions per provider per shift (12 hours)
-    # Since inputs are per hour per provider, multiply by 12 for full shift
-    per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
+        # Calculate total interruptions per provider per shift (12 hours)
+        per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
 
-    # Calculate total organizational time lost using simulator's method
-    time_lost = simulator.calculate_total_interruption_time(
-        nursing_q, exam_callbacks, peer_interrupts, providers
-    )
+        # Get current input values from Workflow Configuration
+        hourly_time = (
+            nursing_q * simulator.interruption_times['nursing_question'] +
+            exam_callbacks * simulator.interruption_times['exam_callback'] + 
+            peer_interrupts * simulator.interruption_times['peer_interrupt']
+        )
 
-    return per_provider, time_lost
+        # Calculate total time lost for all providers over full shift
+        time_lost = hourly_time * 12 * providers
+
+        return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
     """Calculate workload relative to total available shift minutes"""
