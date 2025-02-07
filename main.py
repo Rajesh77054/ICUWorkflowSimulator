@@ -133,10 +133,12 @@ def main():
             workload
         )
 
-        st.markdown("### Key Metrics")
-        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+        st.markdown("### Time Impact Analysis (minutes per shift)")
+        st.markdown("Primary metrics showing actual time allocation during shifts:")
+        
+        impact_col1, impact_col2, impact_col3, impact_col4 = st.columns(4)
 
-        with metric_col1:
+        with impact_col1:
             st.metric(
                 "Interruptions per Provider",
                 f"{interrupts_per_provider:.1f}/shift",
@@ -146,109 +148,83 @@ def main():
                 • Normal range: 20-40 per shift
                 • Warning level: >50 per shift
                 • Critical level: >70 per shift
-
-                High interruption rates can significantly impact provider efficiency and increase burnout risk.
-                """
-            )
-        with metric_col2:
-            st.metric(
-                "Productivity Impact (Interruptions)",
-                f"{time_lost:.0f} min",
-                help="""
-                Actual productive time lost to interruptions (95% of base calculation).
-                • Base calculation: Sum of (frequency × duration × 12 hours × providers)
-                • Adjusted for actual productive time impact
-                • Normal range: 120-240 minutes
-                • Warning level: >300 minutes
-                • Critical level: >360 minutes
-
-                This represents the direct productivity loss, excluding administrative overhead.
-                """
-            )
-        with metric_col3:
-            st.metric(
-                "Provider Efficiency",
-                f"{efficiency:.1%}",
-                help="""
-                Percentage of time providers can dedicate to primary patient care duties.
-                • Calculation: (Total shift time - Interruption time) / Total shift time
-                • Target range: >85%
-                • Warning level: <75%
-                • Critical level: <65%
-
-                Lower efficiency may indicate need for interruption management strategies.
-                """
-            )
-        with metric_col4:
-            st.metric(
-                "Cognitive Load",
-                f"{cognitive_load:.0f}/100",
-                help="""
-                Estimated mental workload based on multiple factors:
-                • Interruption frequency
-                • Critical event management
-                • Patient complexity
-                • Total workload
-
-                Scale interpretation:
-                • 0-40: Sustainable workload
-                • 41-70: Moderate stress level
-                • 71-85: High stress - Consider additional support
-                • >85: Critical level - Immediate intervention needed
-                """
-            )
-
-        st.markdown("### Time Impact Analysis (minutes per shift)")
-        impact_col1, impact_col2, impact_col3 = st.columns(3)
-
-        with impact_col1:
-            st.metric(
-                "Time Allocation (Interruptions)",
-                f"{interrupt_time:.0f}",
-                help="""
-                Total allocated time for interruption handling, including overhead:
-                • Base interruption time
-                • Rounding period overhead (80%)
-                • Data collection inefficiency
-                
-                Impact levels:
-                • <120 min: Manageable
-                • 120-180 min: Moderate impact
-                • >180 min: Significant impact
-
-                This represents the full time allocation including all overhead factors.
                 """
             )
         with impact_col2:
             st.metric(
-                "Admission/Transfer Time",
-                f"{admission_time:.0f}",
-                help=f"""
-                Time dedicated to patient movement activities:
-                • Simple admission: {simulator.admission_times['simple']} min
-                • Complex admission: {simulator.admission_times['complex']} min
-                • Consult: {simulator.admission_times['consult']} min
-                • Transfer: {simulator.admission_times['transfer']} min
-
-                Total time should be distributed evenly among available providers.
-                Consider additional coverage when total time exceeds 4 hours per provider.
+                "Interruption Time",
+                f"{interrupt_time:.0f}",
+                help="""
+                Total time spent handling interruptions:
+                • Calculation: Sum of (frequency × duration × 12 hours × providers)
+                • Includes rounding period overhead
+                • <120 min: Manageable
+                • >180 min: Significant impact
                 """
             )
         with impact_col3:
             st.metric(
+                "Admission/Transfer Time",
+                f"{admission_time:.0f}",
+                help=f"""
+                Time for patient movement activities:
+                • Simple admission: {simulator.admission_times['simple']} min
+                • Complex admission: {simulator.admission_times['complex']} min
+                • Consult: {simulator.admission_times['consult']} min
+                • Transfer: {simulator.admission_times['transfer']} min
+                """
+            )
+        with impact_col4:
+            st.metric(
                 "Critical Event Time",
                 f"{critical_time:.0f}",
                 help=f"""
-                Time spent managing critical patient events:
-                • Average duration per event: {simulator.critical_event_time} min
-                • Daily impact shown here
-
-                Management strategies:
+                Time managing critical events:
+                • Average duration: {simulator.critical_event_time} min
                 • <60 min: Regular staffing adequate
-                • 60-120 min: Consider backup coverage
-                • >120 min: Additional provider likely needed
+                • 60-120 min: Consider backup
+                • >120 min: Additional provider needed
+                """
+            )
 
-                Critical events take priority and may significantly impact other duties.
+        st.markdown("### Derived Metrics")
+        st.markdown("Secondary metrics calculated from time allocations:")
+        derived_col1, derived_col2, derived_col3 = st.columns(3)
+
+        with derived_col1:
+            st.metric(
+                "Provider Efficiency",
+                f"{efficiency:.1%}",
+                help="""
+                Available time for primary duties:
+                • Based on total time minus interruptions
+                • Accounts for critical event impact
+                • Target: >85%
+                • Warning: <75%
+                """
+            )
+        with derived_col2:
+            total_time = interrupt_time + admission_time + critical_time
+            st.metric(
+                "Total Time Impact",
+                f"{total_time:.0f} min",
+                help="""
+                Sum of all time allocations:
+                • Total minutes across all activities
+                • Warning if exceeds shift duration (720 min)
+                • Indicates workload sustainability
+                """
+            )
+        with derived_col3:
+            st.metric(
+                "Cognitive Load Score",
+                f"{cognitive_load:.0f}/100",
+                help="""
+                Workload intensity score:
+                • Based on interruption frequency
+                • Weighted by critical events
+                • <40: Sustainable
+                • >70: High stress
                 """
             )
 
