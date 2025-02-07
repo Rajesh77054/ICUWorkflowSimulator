@@ -115,9 +115,9 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
         annotations=[dict(
             text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
             showarrow=False,
-            x=0.5,
-            y=-0.3,  # Adjusted position relative to container
-            xanchor='center',
+            x=0.0,  # Align with left edge
+            y=-0.2,  # Moved up by one-third
+            xanchor='left',  # Left align text
             yanchor='top',
             font=dict(size=14),
             xref='paper',
