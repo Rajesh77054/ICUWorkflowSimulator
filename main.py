@@ -330,7 +330,7 @@ def main():
             </style>
         """, unsafe_allow_html=True)
 
-        total_interrupts = nursing_q + exam_callbacks + peer_interrupts
+        total_interrupts = (nursing_q + exam_callbacks + peer_interrupts) * 12  # Total interruptions per shift
         st.markdown(
             f"""
             <div class="impact-grid">
