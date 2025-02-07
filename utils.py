@@ -126,7 +126,9 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
             y=-0.15,  # Move closer to pie chart
             xanchor='center',  # Center the text
             yanchor='top',    # Align from top
-            font=dict(size=14)
+            font=dict(size=14),
+            xref='paper',     # Use paper coordinates for proper container positioning
+            yref='paper'      # Use paper coordinates for proper container positioning
         )]
     )
 
