@@ -163,12 +163,12 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     post_rounds = np.array([(h == 11) for h in hours]) * 0.3
     rounding_hours = rounding_hours + pre_rounds + post_rounds
 
-    # Combine variations
-    base_variation = base_variation + data_aggregation_overhead + repeated_data_collection
+    # Combine variations and scale for provider count
+    base_variation = (base_variation + data_aggregation_overhead + repeated_data_collection) / providers
 
-    # Calculate critical event impact with cascading effect
-    first_hour_impact = min(60, simulator.critical_event_time) / 60  # Full impact in first hour
-    remaining_impact = max(0, simulator.critical_event_time - 60) / 60  # Half impact thereafter
+    # Calculate critical event impact with cascading effect, scaled by provider count
+    first_hour_impact = (min(60, simulator.critical_event_time) / 60) / providers  # Full impact in first hour
+    remaining_impact = (max(0, simulator.critical_event_time - 60) / 60) / providers  # Half impact thereafter
 
     # During first hour both providers are occupied (2x impact)
     critical_impact = (critical_events_per_day * (
@@ -178,8 +178,8 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
 
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
-    # Combine base workload with variations and critical impact
-    workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
+    # Combine base workload with variations and critical impact, normalized by provider count
+    workload_timeline = (workload / providers) * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
 
