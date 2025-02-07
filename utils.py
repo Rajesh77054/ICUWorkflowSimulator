@@ -178,8 +178,9 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
 
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
-    # Combine base workload with variations and critical impact, normalized by provider count
-    workload_timeline = (workload / providers) * (1 + base_variation + scaled_critical_impact)
+    # Calculate base workload normalized by providers first, then apply variations
+    base_workload = workload / providers
+    workload_timeline = base_workload * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
 
