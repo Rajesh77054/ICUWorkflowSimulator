@@ -79,26 +79,41 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
 
 
 def create_time_allocation_pie(time_lost, available_hours=12):
-    # Convert time_lost to minutes for more precise representation
+    """Create pie chart showing time allocation during shift"""
     time_lost_minutes = time_lost * 60
     available_minutes = available_hours * 60
+    remaining_minutes = available_minutes - time_lost_minutes
 
-    labels = ['Time Lost to Interruptions', 'Available Time']
-    values = [time_lost_minutes, available_minutes - time_lost_minutes]
+    labels = ['Interrupted Time', 'Available Clinical Time']
+    values = [time_lost_minutes, remaining_minutes]
+    percentages = [v/available_minutes * 100 for v in values]
+
+    # Create custom hover text with both minutes and percentages
+    hover_text = [
+        f'Interrupted: {time_lost_minutes:.0f} min ({percentages[0]:.1f}%)',
+        f'Available: {remaining_minutes:.0f} min ({percentages[1]:.1f}%)'
+    ]
 
     fig = px.pie(
         values=values,
         names=labels,
-        title='Time Allocation per Shift (minutes)',
-        color_discrete_sequence=['#ff9999', '#66b3ff']
+        title='Provider Time Allocation (12-hour shift)',
+        color_discrete_sequence=['#ff9999', '#66b3ff'],
+        hover_data=[hover_text]
     )
 
-    # Add total minutes annotation
+    fig.update_traces(
+        textinfo='percent+label',
+        hovertemplate="%{customdata[0]}<extra></extra>"
+    )
+
+    # Add clearer total time annotation
     fig.add_annotation(
-        text=f'Total Shift: {available_minutes} minutes',
+        text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
         showarrow=False,
         x=0.5,
-        y=-0.2
+        y=-0.2,
+        font=dict(size=12)
     )
 
     return fig
