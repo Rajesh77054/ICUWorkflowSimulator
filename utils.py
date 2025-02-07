@@ -78,19 +78,30 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
     return fig
 
 
-def create_time_allocation_pie(time_lost, available_hours=12):
-    """Create pie chart showing time allocation during shift"""
-    time_lost_minutes = time_lost * 60
+def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
+    """Create pie chart showing time allocation during shift
+
+    Args:
+        time_lost: Total organizational time lost to interruptions (minutes)
+        providers: Number of providers
+        available_hours: Shift duration in hours
+    """
+    # Convert time_lost to per-provider minutes
+    time_lost_per_provider = time_lost / providers
+
     available_minutes = available_hours * 60
-    remaining_minutes = available_minutes - time_lost_minutes
+    remaining_minutes = available_minutes - time_lost_per_provider
+
+    # Ensure we don't show negative remaining time
+    remaining_minutes = max(0, remaining_minutes)
 
     labels = ['Interrupted Time', 'Available Clinical Time']
-    values = [time_lost_minutes, remaining_minutes]
+    values = [time_lost_per_provider, remaining_minutes]
     percentages = [v/available_minutes * 100 for v in values]
 
     # Create custom hover text with both minutes and percentages
     hover_text = [
-        f'Interrupted: {time_lost_minutes:.0f} min ({percentages[0]:.1f}%)',
+        f'Interrupted: {time_lost_per_provider:.0f} min ({percentages[0]:.1f}%)',
         f'Available: {remaining_minutes:.0f} min ({percentages[1]:.1f}%)'
     ]
 

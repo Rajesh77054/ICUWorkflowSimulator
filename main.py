@@ -135,7 +135,7 @@ def main():
 
         st.markdown("### Core Workflow Metrics")
         st.markdown("Direct measurements of workflow activities and time allocation:")
-        
+
         primary_col1, primary_col2, primary_col3, primary_col4 = st.columns(4)
 
         with primary_col1:
@@ -296,7 +296,10 @@ def main():
 
         with viz_col2:
             st.plotly_chart(
-                create_time_allocation_pie(time_lost),
+                create_time_allocation_pie(
+                    time_lost,
+                    providers=providers
+                ),
                 use_container_width=True,
                 key="time_allocation_chart"
             )
