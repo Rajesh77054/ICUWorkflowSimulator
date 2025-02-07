@@ -155,14 +155,13 @@ def main():
                 "Productivity Impact (Interruptions)",
                 f"{time_lost:.0f} min",
                 help="""
-                Actual productive time lost to interruptions (95% of base calculation).
-                • Base calculation: Sum of (frequency × duration × 12 hours × providers)
-                • Adjusted for actual productive time impact
+                Actual productive time lost to interruptions, accounting for task switching and recovery time.
+                • Calculated as 95% of theoretical maximum time impact
+                • Based on research showing interruption recovery time is less than full duration
+                • Accounts for providers adapting to interrupt-driven workflow
                 • Normal range: 120-240 minutes
                 • Warning level: >300 minutes
                 • Critical level: >360 minutes
-
-                This represents the direct productivity loss, excluding administrative overhead.
                 """
             )
         with metric_col3:

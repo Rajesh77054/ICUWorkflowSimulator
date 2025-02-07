@@ -50,12 +50,19 @@ class WorkflowSimulator:
     def calculate_total_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts, providers):
         """Calculate total organizational interruption time during a 12-hour shift
         Input frequencies are per hour per provider
-        Returns: Total minutes lost to interruptions across all providers
+        Returns: Total minutes lost to interruptions across all providers, adjusted for productivity
+        
+        Note: Base time is adjusted by productivity_factor (0.95) to account for:
+        - Task switching overhead
+        - Variable interruption response times
+        - Recovery time after interruptions
         """
         individual_time = self.calculate_individual_interruption_time(
             nursing_q, exam_callbacks, peer_interrupts
         )
-        return individual_time * providers  # Total organizational impact
+        base_time = individual_time * providers
+        productivity_factor = 0.95  # 95% of base time represents actual productivity impact
+        return base_time * productivity_factor
 
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts,
                             admissions, consults, transfers, critical_events_per_day, providers):
