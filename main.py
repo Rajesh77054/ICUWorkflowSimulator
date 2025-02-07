@@ -155,13 +155,14 @@ def main():
                 "Productivity Impact (Interruptions)",
                 f"{time_lost:.0f} min",
                 help="""
-                Base time lost handling interruptions during the shift.
-                • Calculation: Sum of (frequency × duration) for each interruption type
+                Actual productive time lost to interruptions (95% of base calculation).
+                • Base calculation: Sum of (frequency × duration × 12 hours × providers)
+                • Adjusted for actual productive time impact
                 • Normal range: 120-240 minutes
                 • Warning level: >300 minutes
                 • Critical level: >360 minutes
 
-                This represents the direct impact on productivity, excluding overhead factors.
+                This represents the direct productivity loss, excluding administrative overhead.
                 """
             )
         with metric_col3:
