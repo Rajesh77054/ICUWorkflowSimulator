@@ -25,18 +25,21 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
-    """Calculate workload per provider"""
-    # Calculate total time required for all tasks using current simulator settings
+    """Calculate workload relative to total available shift minutes"""
+    # Calculate total time required for all tasks
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                   0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
-
-    total_time = (admission_time + consult_time + transfer_time + critical_time) / 60  # Convert to hours
-    workload_per_provider = total_time / providers / 12  # Normalize to 12-hour shift
-
-    return workload_per_provider
+    
+    total_required_minutes = admission_time + consult_time + transfer_time + critical_time
+    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
+    
+    # Calculate relative workload (>1.0 indicates overload)
+    relative_workload = total_required_minutes / available_minutes
+    
+    return relative_workload
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
     # Calculate time impact per hour using current simulator settings
