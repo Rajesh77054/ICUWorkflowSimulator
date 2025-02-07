@@ -79,27 +79,15 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
 
 
 def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
-    """Create pie chart showing time allocation during shift
-
-    Args:
-        time_lost: Total organizational time lost to interruptions (minutes)
-        providers: Number of providers
-        available_hours: Shift duration in hours
-    """
-    # Convert time_lost to per-provider minutes
+    """Create pie chart showing time allocation during shift"""
     time_lost_per_provider = time_lost / providers
-
     available_minutes = available_hours * 60
-    remaining_minutes = available_minutes - time_lost_per_provider
-
-    # Ensure we don't show negative remaining time
-    remaining_minutes = max(0, remaining_minutes)
+    remaining_minutes = max(0, available_minutes - time_lost_per_provider)
 
     labels = ['Interrupted Time', 'Available Clinical Time']
     values = [time_lost_per_provider, remaining_minutes]
     percentages = [v/available_minutes * 100 for v in values]
 
-    # Create custom hover text with both minutes and percentages
     hover_text = [
         f'Interrupted: {time_lost_per_provider:.0f} min ({percentages[0]:.1f}%)',
         f'Available: {remaining_minutes:.0f} min ({percentages[1]:.1f}%)'
@@ -116,14 +104,19 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
 
     fig.update_layout(
         title='Provider Time Allocation (12-hour shift)',
-        height=600,  # Increased container height
+        height=500,
         showlegend=True,
-        margin=dict(t=50, b=100, l=100, r=100),  # Increased bottom margin for label
+        margin=dict(
+            t=30,  # Reduced top margin
+            b=120,  # Increased bottom margin for label
+            l=30,  # Reduced left margin
+            r=30   # Reduced right margin
+        ),
         annotations=[dict(
             text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
             showarrow=False,
             x=0.5,
-            y=-0.25,  # Adjusted position relative to container
+            y=-0.3,  # Adjusted position relative to container
             xanchor='center',
             yanchor='top',
             font=dict(size=14),
