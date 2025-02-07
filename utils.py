@@ -116,7 +116,7 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
 
     fig.update_layout(
         title='Provider Time Allocation (12-hour shift)',
-        height=500,
+        height=550,  # Increased height to accommodate label
         showlegend=True,
         margin=dict(t=100, b=100, l=20, r=20),  # Margins to match reference chart
         annotations=[dict(
