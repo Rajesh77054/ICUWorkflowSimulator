@@ -94,38 +94,31 @@ def create_time_allocation_pie(time_lost, available_hours=12):
         f'Available: {remaining_minutes:.0f} min ({percentages[1]:.1f}%)'
     ]
 
-    fig = px.pie(
+    fig = go.Figure(data=[go.Pie(
+        labels=labels,
         values=values,
-        names=labels,
-        title='Provider Time Allocation (12-hour shift)',
-        color_discrete_sequence=['#ff6b6b', '#4ecdc4'],
-        hover_data=[hover_text]
-    )
-
-    fig.update_traces(
         textinfo='percent+value',
-        textposition='inside',
-        hovertemplate="%{customdata[0]}<extra></extra>",
-        textfont=dict(size=14, color='white'),
-        pull=[0.03, 0],
-        marker=dict(line=dict(color='white', width=2))
-    )
+        hovertemplate="%{customdata}<extra></extra>",
+        customdata=hover_text,
+        marker=dict(colors=['#ff6b6b', '#4ecdc4'])
+    )])
 
     fig.update_layout(
-        title_x=0.5,
-        title_font=dict(size=16),
-        height=400,
-        margin=dict(t=60, b=60),
-        paper_bgcolor='white',
-        annotations=[
-            dict(
-                text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
-                showarrow=False,
-                x=0.5,
-                y=-0.2,
-                font=dict(size=14)
-            )
-        ]
+        title=dict(
+            text='Provider Time Allocation (12-hour shift)',
+            x=0.5,
+            font=dict(size=16)
+        ),
+        height=500,
+        showlegend=True,
+        margin=dict(t=60, b=60, l=20, r=20),
+        annotations=[dict(
+            text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
+            showarrow=False,
+            x=0.5,
+            y=-0.2,
+            font=dict(size=14)
+        )]
     )
 
     return fig
