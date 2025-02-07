@@ -32,7 +32,7 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
-    
+
     # Include interruption time in total workload
     interruption_time = simulator.calculate_total_interruption_time(
         nursing_q=5.0,  # Default values from main.py
@@ -40,13 +40,13 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
         peer_interrupts=2.0,
         providers=providers
     )
-    
+
     total_required_minutes = admission_time + consult_time + transfer_time + critical_time + interruption_time
     available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
-    
+
     # Calculate relative workload (>1.0 indicates overload)
     relative_workload = total_required_minutes / available_minutes
-    
+
     return relative_workload
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
@@ -142,8 +142,8 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
     return fig
 
 def create_workload_timeline(workload, providers, critical_events_per_day, simulator):
-    # Create hours array for 12-hour shift (8 AM to 8 PM)
-    hours = list(range(8, 21))
+    """Create timeline showing projected workload with tooltip explanation"""
+    hours = list(range(8, 21))  # 8 AM to 8 PM
 
     # Base workload variation throughout the day
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
@@ -152,12 +152,12 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     rounding_hours = np.array([(9 <= h < 11) for h in hours])
     data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
     repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
-    
+
     # Smooth the transition at rounding boundaries with consistent ramping
     transition_start = np.array([(h == 8) for h in hours]) * 0.4  # Aligned with simulator
     transition_end = np.array([(h == 11) for h in hours]) * 0.3   # Aligned with simulator
     rounding_effect = rounding_hours + transition_start + transition_end
-    
+
     # Add gradual buildup and cooldown
     pre_rounds = np.array([(h == 8) for h in hours]) * 0.4
     post_rounds = np.array([(h == 11) for h in hours]) * 0.3
