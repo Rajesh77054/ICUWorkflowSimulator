@@ -98,22 +98,34 @@ def create_time_allocation_pie(time_lost, available_hours=12):
         values=values,
         names=labels,
         title='Provider Time Allocation (12-hour shift)',
-        color_discrete_sequence=['#ff9999', '#66b3ff'],
+        color_discrete_sequence=['#ff6b6b', '#4ecdc4'],
         hover_data=[hover_text]
     )
 
     fig.update_traces(
-        textinfo='percent+label',
-        hovertemplate="%{customdata[0]}<extra></extra>"
+        textinfo='percent+value',
+        textposition='inside',
+        hovertemplate="%{customdata[0]}<extra></extra>",
+        textfont=dict(size=14, color='white'),
+        pull=[0.03, 0],
+        marker=dict(line=dict(color='white', width=2))
     )
 
-    # Add clearer total time annotation
-    fig.add_annotation(
-        text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
-        showarrow=False,
-        x=0.5,
-        y=-0.2,
-        font=dict(size=12)
+    fig.update_layout(
+        title_x=0.5,
+        title_font=dict(size=16),
+        height=400,
+        margin=dict(t=60, b=60),
+        paper_bgcolor='white',
+        annotations=[
+            dict(
+                text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
+                showarrow=False,
+                x=0.5,
+                y=-0.2,
+                font=dict(size=14)
+            )
+        ]
     )
 
     return fig
