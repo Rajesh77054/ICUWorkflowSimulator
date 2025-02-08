@@ -44,19 +44,65 @@ def main():
 
         # Common Configuration Section (collapsible)
         with st.expander("⚙️ Workflow Configuration"):
-            col1, col2 = st.columns(2)
+            tab1, tab2 = st.tabs(["Workflow Metrics", "Time Estimates"])
 
-            with col1:
-                nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 5.0, 0.5))
-                exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0, 3.0, 0.5))
-                peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0, 2.0, 0.5))
-                providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
+            with tab1:
+                col1, col2 = st.columns(2)
 
-            with col2:
-                admissions = max(0, st.number_input("New Admissions (per dayshift)", 0, 20, 3))
-                consults = max(0, st.number_input("Floor Consults (per dayshift)", 0, 20, 4))
-                transfers = max(0, st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2))
-                critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5))
+                with col1:
+                    nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 5.0, 0.5))
+                    exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0, 3.0, 0.5))
+                    peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0, 2.0, 0.5))
+                    providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
+
+                with col2:
+                    admissions = max(0, st.number_input("New Admissions (per dayshift)", 0, 20, 3))
+                    consults = max(0, st.number_input("Floor Consults (per dayshift)", 0, 20, 4))
+                    transfers = max(0, st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2))
+                    critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5))
+
+            with tab2:
+                st.markdown("#### Time Duration Estimates")
+
+                # Interruption times
+                st.subheader("Interruption Times (minutes)")
+                int_col1, int_col2, int_col3 = st.columns(3)
+                with int_col1:
+                    nursing_time = st.number_input("Nursing Question Duration", 1, 10, 2, 1)
+                with int_col2:
+                    callback_time = st.number_input("Exam Callback Duration", 1, 20, 8, 1)
+                with int_col3:
+                    peer_time = st.number_input("Peer Interrupt Duration", 1, 20, 8, 1)
+
+                # Admission times
+                st.subheader("Admission Times (minutes)")
+                adm_col1, adm_col2 = st.columns(2)
+                with adm_col1:
+                    simple_admission_time = st.number_input("Simple Admission Duration", 30, 120, 60, 5)
+                    consult_time = st.number_input("Floor Consult Duration", 15, 90, 45, 5)
+                with adm_col2:
+                    complex_admission_time = st.number_input("Complex Admission Duration", 45, 180, 90, 5)
+                    transfer_time = st.number_input("Transfer Call Duration", 15, 60, 30, 5)
+
+                # Critical event time
+                st.subheader("Critical Event Time (minutes)")
+                critical_event_time = st.number_input("Critical Event Duration", 60, 180, 105, 5)
+
+                # Update simulator settings
+                simulator.update_time_settings({
+                    'interruption_times': {
+                        'nursing_question': nursing_time,
+                        'exam_callback': callback_time,
+                        'peer_interrupt': peer_time
+                    },
+                    'admission_times': {
+                        'simple': simple_admission_time,
+                        'complex': complex_admission_time,
+                        'consult': consult_time,
+                        'transfer': transfer_time
+                    },
+                    'critical_event_time': critical_event_time
+                })
 
         # Calculate core metrics
         interrupts_per_provider, time_lost = calculate_interruptions(
@@ -101,7 +147,7 @@ def main():
 
             # Core Workflow Metrics Section
             st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
-            
+
             metrics_cols = st.columns(4)
             with metrics_cols[0]:
                 st.metric(
