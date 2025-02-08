@@ -5,28 +5,28 @@ import plotly.graph_objects as go
 from simulator import WorkflowSimulator
 
 def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
-        """Calculate interruption metrics using actual input values
-        Input frequencies are per hour per provider
-        Returns:
-        - interrupts_per_provider: number of interruptions per provider per shift
-        - time_lost: total organizational minutes lost to interruptions per shift
-        """
-        simulator = WorkflowSimulator()
+    """Calculate interruption metrics using actual input values
+    Input frequencies are per hour per provider
+    Returns:
+    - interrupts_per_provider: number of interruptions per provider per shift
+    - time_lost: total organizational minutes lost to interruptions per shift
+    """
+    simulator = WorkflowSimulator()
 
-        # Calculate total interruptions per provider per shift (12 hours)
-        per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
+    # Calculate total interruptions per provider per shift (12 hours)
+    per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
 
-        # Get current input values from Workflow Configuration
-        hourly_time = (
-            nursing_q * simulator.interruption_times['nursing_question'] +
-            exam_callbacks * simulator.interruption_times['exam_callback'] + 
-            peer_interrupts * simulator.interruption_times['peer_interrupt']
-        )
+    # Calculate time lost per hour using current simulator settings
+    hourly_time = (
+        nursing_q * simulator.interruption_times['nursing_question'] +
+        exam_callbacks * simulator.interruption_times['exam_callback'] + 
+        peer_interrupts * simulator.interruption_times['peer_interrupt']
+    )
 
-        # Calculate total time lost for all providers over full shift
-        time_lost = hourly_time * 12 * providers
+    # Calculate total time lost for all providers over full shift
+    time_lost = hourly_time * 12 * providers
 
-        return per_provider, time_lost
+    return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
     """Calculate workload relative to total available shift minutes"""
