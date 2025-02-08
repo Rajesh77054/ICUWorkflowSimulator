@@ -79,7 +79,7 @@ class WorkflowSimulator:
 
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, 
                                    critical_events_per_day, shift_hours=12):
-        """Calculate provider efficiency considering all factors"""
+        """Calculate provider efficiency considering all factors and parallel work capacity"""
         base_efficiency = 1.0
         interruption_impact = 0.05
         workload_impact = 0.1
@@ -90,18 +90,22 @@ class WorkflowSimulator:
         data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
         rounding_impact = (rounding_overhead + data_collection_inefficiency) * (rounding_hours / shift_hours)
 
-        # Calculate critical event impact on efficiency
+        # Calculate critical event impact on efficiency, accounting for parallel provider work
         critical_first_hour = min(60, self.critical_event_time)
         critical_remaining = max(0, self.critical_event_time - 60)
 
-        # During first hour, both providers are unavailable
+        # During first hour, both providers are unavailable (full impact)
         total_unavailable_time = critical_first_hour * critical_events_per_day
-        # After first hour, one provider remains on critical event
+        # After first hour, one provider remains on critical event (half impact due to parallel capacity)
         partial_unavailable_time = critical_remaining * critical_events_per_day
 
-        # Calculate effective shift time reduction
+        # Calculate effective shift time reduction accounting for parallel provider capacity
         shift_minutes = shift_hours * 60
-        efficiency_reduction = (total_unavailable_time / shift_minutes) + (partial_unavailable_time / (2 * shift_minutes))
+        total_provider_minutes = shift_minutes * providers
+        efficiency_reduction = (
+            (total_unavailable_time * 2) +  # Both providers unavailable
+            partial_unavailable_time        # One provider unavailable
+        ) / total_provider_minutes
 
         total_interruptions = interruptions_per_hour * shift_hours
         regular_efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)

@@ -27,12 +27,20 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     return per_provider, time_lost
 
 def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
-    """Calculate workload relative to total available shift minutes"""
+    """Calculate workload relative to total available shift minutes
+
+    Accounts for providers working in parallel:
+    - Total available time = providers * 12 hours * 60 minutes
+    - Tasks can be distributed across providers
+    - Critical events require specific provider allocation
+    """
     # Calculate total time required for all tasks
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                  0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
+
+    # Critical events have special handling since they require specific provider allocation
     critical_time = critical_events * simulator.critical_event_time
 
     # Calculate interruption time using current simulator settings
@@ -43,13 +51,17 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
         providers=providers
     )
 
+    # Calculate total required minutes for all tasks
     total_required_minutes = admission_time + consult_time + transfer_time + critical_time + interruption_time
-    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour = total available minutes
+
+    # Calculate total available minutes across all providers working in parallel
+    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
 
     # Calculate relative workload (>1.0 indicates overload)
+    # This represents the fraction of total provider capacity being used
     relative_workload = total_required_minutes / available_minutes
 
-    return relative_workload  # This is already normalized by total provider minutes
+    return relative_workload
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
     # Calculate time impact per hour using current simulator settings
@@ -93,7 +105,6 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
 
 def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
     """Create pie chart showing time allocation during shift
-
     Args:
         time_lost: Total organizational time lost to interruptions (minutes)
         providers: Number of providers
@@ -149,13 +160,7 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     The workload timeline shows the relative workload throughout the day where:
     - 1.0 represents full utilization of all available provider time
     - Values > 1.0 indicate overload conditions
-    - Base workload is already normalized by total provider minutes (providers * 12 hours * 60 minutes)
-
-    Args:
-        workload: Base workload ratio (total required minutes / total available provider minutes)
-        providers: Number of providers
-        critical_events_per_day: Average number of critical events per day
-        simulator: WorkflowSimulator instance with current time settings
+    - Base workload accounts for parallel provider work capacity
     """
     hours = list(range(8, 21))  # 8 AM to 8 PM
 
@@ -165,35 +170,37 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     # Add specific rounding inefficiency (9-11 AM)
     rounding_hours = np.array([(9 <= h < 11) for h in hours])
     data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
-    repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
+    repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated data collection
 
     # Smooth the transition at rounding boundaries
     transition_start = np.array([(h == 8) for h in hours]) * 0.4  # Ramp up to rounds
     transition_end = np.array([(h == 11) for h in hours]) * 0.3   # Ramp down from rounds
     rounding_effect = rounding_hours + transition_start + transition_end
 
-    # Factor in provider count for rounding impact (overhead is shared across providers)
+    # Factor in provider count for rounding impact (overhead is distributed across providers)
     base_variation = (base_variation + data_aggregation_overhead + repeated_data_collection) / providers
 
     # Calculate critical event impact on available provider time
-    first_hour_impact = (min(60, simulator.critical_event_time) / 60) / providers  # First hour both providers unavailable
-    remaining_impact = (max(0, simulator.critical_event_time - 60) / 60) / providers  # Then one provider remains occupied
+    # During first hour, both providers are unavailable (reduced parallel capacity)
+    first_hour_impact = (min(60, simulator.critical_event_time) / 60) * (2/providers)  # Scale by provider ratio
+    # After first hour, one provider remains on critical event
+    remaining_impact = (max(0, simulator.critical_event_time - 60) / 60) * (1/providers)  # Scale by provider ratio
 
-    # Scale critical impact by events per day and provider count
+    # Calculate total critical impact accounting for parallel provider availability
     critical_impact = (critical_events_per_day * (
-        (first_hour_impact * 2) +  # Both providers unavailable initially
-        (remaining_impact)         # One provider unavailable for remainder
+        first_hour_impact +  # Initial impact when both providers are needed
+        remaining_impact     # Remaining impact with one provider
     )) / 12  # Normalize to shift duration
 
     # Scale critical impact by actual duration vs default
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
-    # Calculate timeline values - workload is already normalized by total provider minutes
+    # Calculate timeline values - workload already accounts for parallel provider capacity
     workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
 
-    # Add base workload area
+    # Add workload area
     fig.add_trace(go.Scatter(
         x=hours,
         y=workload_timeline,
@@ -203,7 +210,7 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
         hovertemplate="Hour: %{x}<br>Relative Workload: %{y:.2f}<extra></extra>"
     ))
 
-    # Add optimal workload reference line (1.0 = full utilization of all provider time)
+    # Add optimal workload reference line (1.0 = full utilization of total provider capacity)
     fig.add_trace(go.Scatter(
         x=hours,
         y=[1.0] * len(hours),
