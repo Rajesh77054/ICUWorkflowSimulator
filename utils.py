@@ -4,19 +4,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 from simulator import WorkflowSimulator
 
-def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers):
+def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers, simulator):
     """Calculate interruption metrics using actual input values
     Input frequencies are per hour per provider
     Returns:
     - interrupts_per_provider: number of interruptions per provider per shift
     - time_lost: total organizational minutes lost to interruptions per shift
     """
-    simulator = WorkflowSimulator()
-
     # Calculate total interruptions per provider per shift (12 hours)
     per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
 
-    # Calculate time lost per hour using current simulator settings
+    # Calculate time lost per hour using provided simulator settings
     hourly_time = (
         nursing_q * simulator.interruption_times['nursing_question'] +
         exam_callbacks * simulator.interruption_times['exam_callback'] + 
@@ -32,14 +30,14 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     """Calculate workload relative to total available shift minutes"""
     # Calculate total time required for all tasks
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                  0.3 * simulator.admission_times['complex'])
+                                 0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']
     transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
 
-    # Include interruption time in total workload
+    # Calculate interruption time using current simulator settings
     interruption_time = simulator.calculate_total_interruption_time(
-        nursing_q=5.0,  # Default values from main.py
+        nursing_q=5.0,  # Default values
         exam_callbacks=3.0,
         peer_interrupts=2.0,
         providers=providers

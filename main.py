@@ -106,12 +106,13 @@ def main():
 
         # Calculate core metrics
         interrupts_per_provider, time_lost = calculate_interruptions(
-            nursing_q, exam_callbacks, peer_interrupts, providers
+            nursing_q, exam_callbacks, peer_interrupts,
+            providers, simulator  # Pass simulator instance
         )
 
         workload = calculate_workload(
             admissions, consults, transfers,
-            critical_events/7, providers, simulator
+            critical_events/7, providers, simulator  # Pass simulator instance
         )
 
         critical_events_per_day = critical_events / 7.0
