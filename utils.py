@@ -144,10 +144,22 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
     return fig
 
 def create_workload_timeline(workload, providers, critical_events_per_day, simulator):
-    """Create timeline showing projected workload with tooltip explanation"""
+    """Create timeline showing projected workload with tooltip explanation
+
+    The workload timeline shows the relative workload throughout the day where:
+    - 1.0 represents full utilization of all available provider time
+    - Values > 1.0 indicate overload conditions
+    - Base workload is already normalized by total provider minutes (providers * 12 hours * 60 minutes)
+
+    Args:
+        workload: Base workload ratio (total required minutes / total available provider minutes)
+        providers: Number of providers
+        critical_events_per_day: Average number of critical events per day
+        simulator: WorkflowSimulator instance with current time settings
+    """
     hours = list(range(8, 21))  # 8 AM to 8 PM
 
-    # Base workload variation throughout the day
+    # Base workload variation throughout the day (±20% sinusoidal variation)
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
 
     # Add specific rounding inefficiency (9-11 AM)
@@ -155,34 +167,29 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     data_aggregation_overhead = 0.8 * rounding_hours  # 80% overhead during rounds
     repeated_data_collection = 0.3 * rounding_hours   # 30% inefficiency from repeated static data collection
 
-    # Smooth the transition at rounding boundaries with consistent ramping
-    transition_start = np.array([(h == 8) for h in hours]) * 0.4  # Aligned with simulator
-    transition_end = np.array([(h == 11) for h in hours]) * 0.3   # Aligned with simulator
+    # Smooth the transition at rounding boundaries
+    transition_start = np.array([(h == 8) for h in hours]) * 0.4  # Ramp up to rounds
+    transition_end = np.array([(h == 11) for h in hours]) * 0.3   # Ramp down from rounds
     rounding_effect = rounding_hours + transition_start + transition_end
 
-    # Add gradual buildup and cooldown
-    pre_rounds = np.array([(h == 8) for h in hours]) * 0.4
-    post_rounds = np.array([(h == 11) for h in hours]) * 0.3
-    rounding_hours = rounding_hours + pre_rounds + post_rounds
-
-    # Combine variations and scale for provider count
+    # Factor in provider count for rounding impact (overhead is shared across providers)
     base_variation = (base_variation + data_aggregation_overhead + repeated_data_collection) / providers
 
-    # Calculate critical event impact with cascading effect, scaled by provider count
-    first_hour_impact = (min(60, simulator.critical_event_time) / 60) / providers  # Full impact in first hour
-    remaining_impact = (max(0, simulator.critical_event_time - 60) / 60) / providers  # Half impact thereafter
+    # Calculate critical event impact on available provider time
+    first_hour_impact = (min(60, simulator.critical_event_time) / 60) / providers  # First hour both providers unavailable
+    remaining_impact = (max(0, simulator.critical_event_time - 60) / 60) / providers  # Then one provider remains occupied
 
-    # During first hour both providers are occupied (2x impact)
+    # Scale critical impact by events per day and provider count
     critical_impact = (critical_events_per_day * (
-        (first_hour_impact * 2) +  # Both providers unavailable
-        (remaining_impact * 1)      # One provider unavailable
+        (first_hour_impact * 2) +  # Both providers unavailable initially
+        (remaining_impact)         # One provider unavailable for remainder
     )) / 12  # Normalize to shift duration
 
+    # Scale critical impact by actual duration vs default
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
-    # Calculate base workload normalized by providers first, then apply variations
-    base_workload = workload  # workload is already normalized by providers in calculate_workload
-    workload_timeline = base_workload * (1 + base_variation + scaled_critical_impact)
+    # Calculate timeline values - workload is already normalized by total provider minutes
+    workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
 
@@ -192,21 +199,23 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
         y=workload_timeline,
         fill='tozeroy',
         name='Workload',
-        line=dict(color='#0096c7', width=2)
+        line=dict(color='#0096c7', width=2),
+        hovertemplate="Hour: %{x}<br>Relative Workload: %{y:.2f}<extra></extra>"
     ))
 
-    # Add optimal workload reference line
+    # Add optimal workload reference line (1.0 = full utilization of all provider time)
     fig.add_trace(go.Scatter(
         x=hours,
         y=[1.0] * len(hours),
         name='Optimal Load',
-        line=dict(color='#666666', dash='dash')
+        line=dict(color='#666666', dash='dash'),
+        hovertemplate="Target Load: 1.0<extra></extra>"
     ))
 
     fig.update_layout(
         title='Projected Dayshift Workload (8 AM - 8 PM)',
         xaxis_title='Hour of Day',
-        yaxis_title='Relative Workload',
+        yaxis_title='Relative Workload (1.0 = Full Provider Capacity)',
         xaxis=dict(
             ticktext=['8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'],
             tickvals=[8, 10, 12, 14, 16, 18, 20]
