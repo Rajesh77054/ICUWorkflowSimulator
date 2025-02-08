@@ -44,12 +44,12 @@ def calculate_workload(admissions, consults, transfers, critical_events, provide
     )
 
     total_required_minutes = admission_time + consult_time + transfer_time + critical_time + interruption_time
-    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
+    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour = total available minutes
 
     # Calculate relative workload (>1.0 indicates overload)
     relative_workload = total_required_minutes / available_minutes
 
-    return relative_workload
+    return relative_workload  # This is already normalized by total provider minutes
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
     # Calculate time impact per hour using current simulator settings
@@ -181,7 +181,7 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
     # Calculate base workload normalized by providers first, then apply variations
-    base_workload = workload / providers
+    base_workload = workload  # workload is already normalized by providers in calculate_workload
     workload_timeline = base_workload * (1 + base_variation + scaled_critical_impact)
 
     fig = go.Figure()
