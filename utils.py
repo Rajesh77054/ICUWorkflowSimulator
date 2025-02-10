@@ -26,15 +26,21 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
 
     return per_provider, time_lost
 
-def calculate_workload(admissions, consults, transfers, critical_events, providers, simulator):
+def calculate_workload(adc, admissions, consults, transfers, critical_events, providers, simulator):
     """Calculate workload relative to total available shift minutes
 
-    Accounts for providers working in parallel:
-    - Total available time = providers * 12 hours * 60 minutes
-    - Tasks can be distributed across providers
-    - Critical events require specific provider allocation
+    Base workload determined by ADC (0-16 patients), then divided by providers.
+    Additional tasks and events add to per-provider workload.
+    
+    Args:
+        adc: Average Daily Census (0-16 patients)
+        providers: Number of providers
+        Other args: Additional workload factors
     """
-    # Calculate total time required for all tasks
+    # Calculate base workload from ADC (scales 0-1 for 0-16 patients)
+    base_workload = adc / 16.0
+    
+    # Calculate additional time required for all tasks
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                  0.3 * simulator.admission_times['complex'])
     consult_time = consults * simulator.admission_times['consult']

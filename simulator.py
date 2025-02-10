@@ -77,12 +77,16 @@ class WorkflowSimulator:
 
         return interrupt_time, admission_time, critical_time
 
-    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload, 
-                                   critical_events_per_day, shift_hours=12):
+    def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload,
+                                   critical_events_per_day, adc, shift_hours=12):
         """Calculate provider efficiency considering all factors and parallel work capacity"""
         base_efficiency = 1.0
         interruption_impact = 0.05
         workload_impact = 0.1
+        
+        # Adjust base efficiency based on ADC per provider ratio
+        patients_per_provider = adc / providers
+        base_efficiency = min(1.0, 1.2 - (patients_per_provider * 0.15))  # Decrease efficiency as patients/provider increases
 
         # Account for rounding inefficiency (9-11 AM)
         rounding_hours = 2  # 9-11 AM

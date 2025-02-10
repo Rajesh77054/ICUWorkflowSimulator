@@ -50,6 +50,7 @@ def main():
                 col1, col2 = st.columns(2)
 
                 with col1:
+                    adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1))
                     nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 5.0, 0.5))
                     exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0, 3.0, 0.5))
                     peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0, 2.0, 0.5))
