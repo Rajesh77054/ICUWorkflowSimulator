@@ -115,9 +115,15 @@ def main():
                             value = st.session_state[f'{key}_input']
                             st.session_state.scaling_factors[key] = value
                             simulator.interruption_scales[key] = value
-                            # Update corresponding metric
                             if adc > 0:
                                 st.session_state[f'{key}_metric'] = value * adc
+                                # Recalculate interruptions and time lost
+                                nursing_q = adc * simulator.interruption_scales['nursing_question']
+                                exam_callbacks = adc * simulator.interruption_scales['exam_callback']
+                                peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
+                                st.session_state.interrupts_per_provider, st.session_state.time_lost = calculate_interruptions(
+                                    nursing_q, exam_callbacks, peer_interrupts, providers, simulator
+                                )
 
                     def sync_scale_to_metrics(key):
                         if f'{key}_metric' in st.session_state:
@@ -127,6 +133,13 @@ def main():
                                 st.session_state[f'{key}_input'] = scaled_value
                                 st.session_state.scaling_factors[key] = scaled_value
                                 simulator.interruption_scales[key] = scaled_value
+                                # Recalculate interruptions and time lost
+                                nursing_q = adc * simulator.interruption_scales['nursing_question']
+                                exam_callbacks = adc * simulator.interruption_scales['exam_callback']
+                                peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
+                                st.session_state.interrupts_per_provider, st.session_state.time_lost = calculate_interruptions(
+                                    nursing_q, exam_callbacks, peer_interrupts, providers, simulator
+                                )
 
                     with scaling_col1:
                         nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
