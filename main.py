@@ -54,19 +54,19 @@ def main():
                     
                     # Calculate scaled interruptions based on ADC and update scaling factors if inputs change
                     nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 
-                                  round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5))
-                    if nursing_q != round(adc * simulator.interruption_scales['nursing_question'], 1):
-                        simulator.interruption_scales['nursing_question'] = nursing_q / adc if adc > 0 else 0
+                                  round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5,
+                                  on_change=lambda: sync_scale_to_metrics('nursing_question'),
+                                  key='nursing_question_metric'))
                         
                     exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0,
-                                       round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5))
-                    if exam_callbacks != round(adc * simulator.interruption_scales['exam_callback'], 1):
-                        simulator.interruption_scales['exam_callback'] = exam_callbacks / adc if adc > 0 else 0
+                                       round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5,
+                                       on_change=lambda: sync_scale_to_metrics('exam_callback'),
+                                       key='exam_callback_metric'))
                         
                     peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0,
-                                        round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5))
-                    if peer_interrupts != round(adc * simulator.interruption_scales['peer_interrupt'], 1):
-                        simulator.interruption_scales['peer_interrupt'] = peer_interrupts / adc if adc > 0 else 0
+                                        round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5,
+                                        on_change=lambda: sync_scale_to_metrics('peer_interrupt'),
+                                        key='peer_interrupt_metric'))
                     
                     providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
 
@@ -110,30 +110,41 @@ def main():
                     if 'scaling_factors' not in st.session_state:
                         st.session_state.scaling_factors = simulator.interruption_scales.copy()
 
-                    def update_scale_and_metrics():
-                        for key in ['nursing_question', 'exam_callback', 'peer_interrupt']:
-                            if f'{key}_input' in st.session_state:
-                                value = st.session_state[f'{key}_input']
-                                st.session_state.scaling_factors[key] = value
-                                simulator.interruption_scales[key] = value
+                    def sync_metrics_to_scale(key):
+                        if f'{key}_input' in st.session_state:
+                            value = st.session_state[f'{key}_input']
+                            st.session_state.scaling_factors[key] = value
+                            simulator.interruption_scales[key] = value
+                            # Update corresponding metric
+                            if adc > 0:
+                                st.session_state[f'{key}_metric'] = value * adc
+
+                    def sync_scale_to_metrics(key):
+                        if f'{key}_metric' in st.session_state:
+                            value = st.session_state[f'{key}_metric']
+                            if adc > 0:
+                                scaled_value = value / adc
+                                st.session_state[f'{key}_input'] = scaled_value
+                                st.session_state.scaling_factors[key] = scaled_value
+                                simulator.interruption_scales[key] = scaled_value
 
                     with scaling_col1:
                         nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
                                                       value=st.session_state.scaling_factors['nursing_question'],
                                                       step=0.01, format="%.2f",
-                                                      on_change=update_scale_and_metrics,
+                                                      on_change=lambda: sync_metrics_to_scale('nursing_question'),
                                                       key='nursing_question_input')
                     with scaling_col2:
                         callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
                                                        value=st.session_state.scaling_factors['exam_callback'],
                                                        step=0.01, format="%.2f",
-                                                       on_change=update_scale_and_metrics,
+                                                       on_change=lambda: sync_metrics_to_scale('exam_callback'),
                                                        key='exam_callback_input')
                     with scaling_col3:
                         peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
                                                    value=st.session_state.scaling_factors['peer_interrupt'],
                                                    step=0.01, format="%.2f",
-                                                   on_change=update_scale_and_metrics,
+                                                   on_change=lambda: sync_metrics_to_scale('peer_interrupt'),
                                                    key='peer_interrupt_input')
 
                 # Recalculate interruption rates based on new scaling factors
