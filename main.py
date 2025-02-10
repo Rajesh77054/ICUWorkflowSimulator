@@ -110,13 +110,58 @@ def main():
                     if 'scaling_factors' not in st.session_state:
                         st.session_state.scaling_factors = simulator.interruption_scales.copy()
 
+                    def update_all_metrics(nursing_q, exam_callbacks, peer_interrupts):
+                        """Update all dependent metrics and session state values"""
+                        # Calculate core metrics
+                        interrupts_per_provider, time_lost = calculate_interruptions(
+                            nursing_q, exam_callbacks, peer_interrupts, providers, simulator
+                        )
+                        
+                        # Calculate workload
+                        workload = calculate_workload(
+                            adc, admissions, consults, transfers,
+                            critical_events/7, providers, simulator
+                        )
+                        
+                        # Calculate time impacts
+                        interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
+                            nursing_q, exam_callbacks, peer_interrupts,
+                            admissions, consults, transfers, critical_events/7, providers
+                        )
+                        
+                        # Update session state with all metrics
+                        st.session_state.interrupts_per_provider = interrupts_per_provider
+                        st.session_state.time_lost = time_lost
+                        st.session_state.workload = workload
+                        st.session_state.interrupt_time = interrupt_time
+                        st.session_state.admission_time = admission_time
+                        st.session_state.critical_time = critical_time
+                        
+                        # Calculate and update efficiency
+                        st.session_state.efficiency = simulator.simulate_provider_efficiency(
+                            nursing_q + exam_callbacks + peer_interrupts,
+                            providers, workload, critical_events/7, adc
+                        )
+                        
+                        # Calculate and update cognitive load
+                        st.session_state.cognitive_load = simulator.calculate_cognitive_load(
+                            interrupts_per_provider, critical_events/7,
+                            admissions, workload
+                        )
+                        
+                        # Calculate burnout risk
+                        st.session_state.burnout_risk = simulator.calculate_burnout_risk(
+                            workload/providers, (nursing_q + exam_callbacks + peer_interrupts)/providers,
+                            critical_events/7
+                        )
+
                     def sync_metrics_to_scale(key):
                         if f'{key}_input' in st.session_state:
                             value = st.session_state[f'{key}_input']
                             st.session_state.scaling_factors[key] = value
                             simulator.interruption_scales[key] = value
                             
-                            # Update all metrics
+                            # Calculate all interruption rates
                             nursing_q = adc * simulator.interruption_scales['nursing_question']
                             exam_callbacks = adc * simulator.interruption_scales['exam_callback']
                             peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
@@ -125,22 +170,9 @@ def main():
                             if adc > 0:
                                 st.session_state[f'{key}_metric'] = value * adc
                             
-                            # Update all core metrics
-                            st.session_state.interrupts_per_provider, st.session_state.time_lost = calculate_interruptions(
-                                nursing_q, exam_callbacks, peer_interrupts, providers, simulator
-                            )
-                            
-                            st.session_state.efficiency = simulator.simulate_provider_efficiency(
-                                nursing_q + exam_callbacks + peer_interrupts,
-                                providers, st.session_state.get('workload', 1.0),
-                                critical_events/7, adc
-                            )
-                            
-                            st.session_state.cognitive_load = simulator.calculate_cognitive_load(
-                                st.session_state.interrupts_per_provider,
-                                critical_events/7, admissions,
-                                st.session_state.get('workload', 1.0)
-                            )
+                            # Update all dependent metrics
+                            update_all_metrics(nursing_q, exam_callbacks, peer_interrupts)
+                            st.experimental_rerun()
 
                     def sync_scale_to_metrics(key):
                         if f'{key}_metric' in st.session_state:
@@ -151,27 +183,14 @@ def main():
                                 st.session_state.scaling_factors[key] = scaled_value
                                 simulator.interruption_scales[key] = scaled_value
                                 
-                                # Update all metrics
+                                # Calculate all interruption rates
                                 nursing_q = adc * simulator.interruption_scales['nursing_question']
                                 exam_callbacks = adc * simulator.interruption_scales['exam_callback']
                                 peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
                                 
-                                # Update all core metrics
-                                st.session_state.interrupts_per_provider, st.session_state.time_lost = calculate_interruptions(
-                                    nursing_q, exam_callbacks, peer_interrupts, providers, simulator
-                                )
-                                
-                                st.session_state.efficiency = simulator.simulate_provider_efficiency(
-                                    nursing_q + exam_callbacks + peer_interrupts,
-                                    providers, st.session_state.get('workload', 1.0),
-                                    critical_events/7, adc
-                                )
-                                
-                                st.session_state.cognitive_load = simulator.calculate_cognitive_load(
-                                    st.session_state.interrupts_per_provider,
-                                    critical_events/7, admissions,
-                                    st.session_state.get('workload', 1.0)
-                                )
+                                # Update all dependent metrics
+                                update_all_metrics(nursing_q, exam_callbacks, peer_interrupts)
+                                st.experimental_rerun()
 
                     with scaling_col1:
                         nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
