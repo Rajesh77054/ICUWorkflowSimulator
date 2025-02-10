@@ -8,6 +8,13 @@ class WorkflowSimulator:
             'exam_callback': 7.5,     # median of 5-10 minutes
             'peer_interrupt': 7.5     # median of 5-10 minutes
         }
+        
+        # Interruptions per hour per patient
+        self.interruption_scales = {
+            'nursing_question': 0.36,
+            'exam_callback': 0.21,
+            'peer_interrupt': 0.14
+        }
 
         self.admission_times = {
             'simple': 60,     # simple admission: 60 mins

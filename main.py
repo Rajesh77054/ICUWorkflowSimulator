@@ -51,9 +51,19 @@ def main():
 
                 with col1:
                     adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1))
-                    nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 5.0, 0.5))
-                    exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0, 3.0, 0.5))
-                    peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0, 2.0, 0.5))
+                    # Calculate scaled interruptions based on ADC
+                    nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 
+                                  value=round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5))
+                    exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0,
+                                       value=round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5))
+                    peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0,
+                                        value=round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5))
+                    
+                    # Show calculated per-patient rates
+                    st.text(f"Per patient rates (per hour):")
+                    st.text(f"Nursing Questions: {simulator.interruption_scales['nursing_question']:.2f}")
+                    st.text(f"Exam Callbacks: {simulator.interruption_scales['exam_callback']:.2f}")
+                    st.text(f"Peer Interrupts: {simulator.interruption_scales['peer_interrupt']:.2f}")
                     providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
 
                 with col2:
