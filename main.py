@@ -123,12 +123,6 @@ def main():
                 exam_callbacks = max(0.0, adc * simulator.interruption_scales['exam_callback'])
                 peer_interrupts = max(0.0, adc * simulator.interruption_scales['peer_interrupt'])
 
-                # Recalculate metrics with updated values
-                    'nursing_question': nursing_scale,
-                    'exam_callback': callback_scale,
-                    'peer_interrupt': peer_scale
-                })
-
                 # Update simulator settings
                 simulator.update_time_settings({
                     'interruption_times': {
