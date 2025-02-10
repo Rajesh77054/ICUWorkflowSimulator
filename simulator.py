@@ -88,8 +88,8 @@ class WorkflowSimulator:
                                    critical_events_per_day, adc, shift_hours=12):
         """Calculate provider efficiency considering all factors and parallel work capacity"""
         base_efficiency = 1.0
-        interruption_impact = 0.05
-        workload_impact = 0.1
+        interruption_impact = sum(self.interruption_scales.values()) * 0.1  # Scale based on configured rates
+        workload_impact = 0.15 * (adc / providers)  # Scale impact by patient load per provider
         
         # Adjust base efficiency based on ADC per provider ratio
         patients_per_provider = adc / providers

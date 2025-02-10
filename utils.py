@@ -57,14 +57,28 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
         providers=providers
     )
 
-    # Calculate total required minutes for all tasks
-    total_required_minutes = admission_time + consult_time + transfer_time + critical_time + interruption_time
+    # Normalize times to per-provider capacity
+    normalized_admission_time = admission_time / providers
+    normalized_consult_time = consult_time / providers
+    normalized_transfer_time = transfer_time / providers
+    
+    # Critical events require specific provider allocation
+    critical_impact = (critical_time / providers) * 1.5  # 50% overhead due to coordination
+    
+    # Interruption time is already normalized by provider count
+    normalized_interruption_time = interruption_time / providers
 
-    # Calculate total available minutes across all providers working in parallel
-    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
+    # Calculate total required minutes per provider
+    total_required_minutes = (normalized_admission_time + 
+                            normalized_consult_time + 
+                            normalized_transfer_time + 
+                            critical_impact + 
+                            normalized_interruption_time)
+
+    # Available minutes per provider
+    available_minutes = 12 * 60  # hours * minutes_per_hour
 
     # Calculate relative workload (>1.0 indicates overload)
-    # This represents the fraction of total provider capacity being used
     relative_workload = total_required_minutes / available_minutes
 
     return relative_workload
