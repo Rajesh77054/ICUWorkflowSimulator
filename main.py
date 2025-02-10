@@ -127,7 +127,7 @@ def main():
 
         efficiency = simulator.simulate_provider_efficiency(
             nursing_q + exam_callbacks + peer_interrupts,
-            providers, workload, critical_events_per_day
+            providers, workload, critical_events_per_day, adc
         )
 
         burnout_risk = simulator.calculate_burnout_risk(
