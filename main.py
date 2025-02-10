@@ -51,13 +51,22 @@ def main():
 
                 with col1:
                     adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1))
-                    # Calculate scaled interruptions based on ADC
+                    
+                    # Calculate scaled interruptions based on ADC and update scaling factors if inputs change
                     nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 
                                   round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5))
+                    if nursing_q != round(adc * simulator.interruption_scales['nursing_question'], 1):
+                        simulator.interruption_scales['nursing_question'] = nursing_q / adc if adc > 0 else 0
+                        
                     exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0,
                                        round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5))
+                    if exam_callbacks != round(adc * simulator.interruption_scales['exam_callback'], 1):
+                        simulator.interruption_scales['exam_callback'] = exam_callbacks / adc if adc > 0 else 0
+                        
                     peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0,
                                         round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5))
+                    if peer_interrupts != round(adc * simulator.interruption_scales['peer_interrupt'], 1):
+                        simulator.interruption_scales['peer_interrupt'] = peer_interrupts / adc if adc > 0 else 0
                     
                     providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
 
