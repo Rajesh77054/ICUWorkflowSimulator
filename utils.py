@@ -49,11 +49,11 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
     # Critical events have special handling since they require specific provider allocation
     critical_time = critical_events * simulator.critical_event_time
 
-    # Calculate interruption time using current simulator settings
+    # Calculate interruption time using actual rates
     interruption_time = simulator.calculate_total_interruption_time(
-        nursing_q=5.0,  # Default values
-        exam_callbacks=3.0,
-        peer_interrupts=2.0,
+        nursing_q=adc * simulator.interruption_scales['nursing_question'],
+        exam_callbacks=adc * simulator.interruption_scales['exam_callback'],
+        peer_interrupts=adc * simulator.interruption_scales['peer_interrupt'],
         providers=providers
     )
 
