@@ -172,7 +172,6 @@ def main():
 
                             # Update all dependent metrics
                             update_all_metrics(nursing_q, exam_callbacks, peer_interrupts)
-                            st.rerun()
 
                     def sync_scale_to_metrics(key):
                         if f'{key}_metric' in st.session_state:
@@ -190,7 +189,6 @@ def main():
 
                                 # Update all dependent metrics
                                 update_all_metrics(nursing_q, exam_callbacks, peer_interrupts)
-                                st.rerun()
 
                     with scaling_col1:
                         nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
