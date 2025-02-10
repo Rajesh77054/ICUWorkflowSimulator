@@ -119,7 +119,7 @@ def main():
                             if adc > 0:
                                 st.session_state[f'{key}_metric'] = value * adc
                             # Force metrics recalculation
-                            st.experimental_rerun()
+                            st.rerun()
 
                     def sync_scale_to_metrics(key):
                         if f'{key}_metric' in st.session_state:
@@ -130,7 +130,7 @@ def main():
                                 st.session_state.scaling_factors[key] = scaled_value
                                 simulator.interruption_scales[key] = scaled_value
                                 # Force metrics recalculation
-                                st.experimental_rerun()
+                                st.rerun()
 
                     with scaling_col1:
                         nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
