@@ -112,7 +112,7 @@ def main():
         )
 
         workload = calculate_workload(
-            admissions, consults, transfers,
+            adc, admissions, consults, transfers,
             critical_events/7, providers, simulator  # Pass simulator instance
         )
 
