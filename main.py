@@ -44,7 +44,7 @@ def main():
 
         # Common Configuration Section (collapsible)
         with st.expander("⚙️ Workflow Configuration"):
-            tab1, tab2 = st.tabs(["Workflow Metrics", "Time Estimates"])
+            tab1, tab2, tab3 = st.tabs(["Workflow Metrics", "Time Estimates", "Scaling Factors"])
 
             with tab1:
                 col1, col2 = st.columns(2)
@@ -59,11 +59,6 @@ def main():
                     peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0,
                                         round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5))
                     
-                    # Show calculated per-patient rates
-                    st.text(f"Per patient rates (per hour):")
-                    st.text(f"Nursing Questions: {simulator.interruption_scales['nursing_question']:.2f}")
-                    st.text(f"Exam Callbacks: {simulator.interruption_scales['exam_callback']:.2f}")
-                    st.text(f"Peer Interrupts: {simulator.interruption_scales['peer_interrupt']:.2f}")
                     providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
 
                 with col2:
@@ -98,6 +93,30 @@ def main():
                 # Critical event time
                 st.subheader("Critical Event Time (minutes)")
                 critical_event_time = st.number_input("Critical Event Duration", 60, 180, 105, 5)
+
+                with tab3:
+                st.markdown("#### Interruption Scaling Factors (per patient per hour)")
+                scaling_col1, scaling_col2, scaling_col3 = st.columns(3)
+                
+                with scaling_col1:
+                    nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0, 
+                                                  value=simulator.interruption_scales['nursing_question'], 
+                                                  step=0.01, format="%.2f")
+                with scaling_col2:
+                    callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
+                                                   value=simulator.interruption_scales['exam_callback'],
+                                                   step=0.01, format="%.2f")
+                with scaling_col3:
+                    peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
+                                               value=simulator.interruption_scales['peer_interrupt'],
+                                               step=0.01, format="%.2f")
+
+                # Update simulator scaling factors
+                simulator.interruption_scales.update({
+                    'nursing_question': nursing_scale,
+                    'exam_callback': callback_scale,
+                    'peer_interrupt': peer_scale
+                })
 
                 # Update simulator settings
                 simulator.update_time_settings({
