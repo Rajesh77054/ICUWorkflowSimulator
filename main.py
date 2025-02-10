@@ -107,25 +107,35 @@ def main():
                     st.markdown("#### Interruption Scaling Factors (per patient per hour)")
                     scaling_col1, scaling_col2, scaling_col3 = st.columns(3)
                     
+                    if 'scaling_factors' not in st.session_state:
+                        st.session_state.scaling_factors = simulator.interruption_scales.copy()
+
+                    def update_scale_and_metrics(key, value):
+                        st.session_state.scaling_factors[key] = value
+                        simulator.interruption_scales[key] = value
+                        st.experimental_rerun()
+
                     with scaling_col1:
-                        nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0, 
-                                                      value=simulator.interruption_scales['nursing_question'], 
-                                                      step=0.01, format="%.2f")
+                        nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
+                                                      value=st.session_state.scaling_factors['nursing_question'],
+                                                      step=0.01, format="%.2f",
+                                                      on_change=update_scale_and_metrics,
+                                                      args=('nursing_question',),
+                                                      key='nursing_scale_input')
                     with scaling_col2:
                         callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
-                                                       value=simulator.interruption_scales['exam_callback'],
-                                                       step=0.01, format="%.2f")
+                                                       value=st.session_state.scaling_factors['exam_callback'],
+                                                       step=0.01, format="%.2f",
+                                                       on_change=update_scale_and_metrics,
+                                                       args=('exam_callback',),
+                                                       key='callback_scale_input')
                     with scaling_col3:
                         peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
-                                                   value=simulator.interruption_scales['peer_interrupt'],
-                                                   step=0.01, format="%.2f")
-
-                # Update simulator scaling factors and recalculate metrics
-                simulator.interruption_scales.update({
-                    'nursing_question': nursing_scale,
-                    'exam_callback': callback_scale,
-                    'peer_interrupt': peer_scale
-                })
+                                                   value=st.session_state.scaling_factors['peer_interrupt'],
+                                                   step=0.01, format="%.2f",
+                                                   on_change=update_scale_and_metrics,
+                                                   args=('peer_interrupt',),
+                                                   key='peer_scale_input')
 
                 # Recalculate interruption rates based on new scaling factors
                 nursing_q = max(0.0, adc * simulator.interruption_scales['nursing_question'])
