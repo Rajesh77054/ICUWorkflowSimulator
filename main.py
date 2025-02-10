@@ -95,21 +95,21 @@ def main():
                 critical_event_time = st.number_input("Critical Event Duration", 60, 180, 105, 5)
 
                 with tab3:
-                st.markdown("#### Interruption Scaling Factors (per patient per hour)")
-                scaling_col1, scaling_col2, scaling_col3 = st.columns(3)
-                
-                with scaling_col1:
-                    nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0, 
-                                                  value=simulator.interruption_scales['nursing_question'], 
-                                                  step=0.01, format="%.2f")
-                with scaling_col2:
-                    callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
-                                                   value=simulator.interruption_scales['exam_callback'],
+                    st.markdown("#### Interruption Scaling Factors (per patient per hour)")
+                    scaling_col1, scaling_col2, scaling_col3 = st.columns(3)
+                    
+                    with scaling_col1:
+                        nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0, 
+                                                      value=simulator.interruption_scales['nursing_question'], 
+                                                      step=0.01, format="%.2f")
+                    with scaling_col2:
+                        callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
+                                                       value=simulator.interruption_scales['exam_callback'],
+                                                       step=0.01, format="%.2f")
+                    with scaling_col3:
+                        peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
+                                                   value=simulator.interruption_scales['peer_interrupt'],
                                                    step=0.01, format="%.2f")
-                with scaling_col3:
-                    peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
-                                               value=simulator.interruption_scales['peer_interrupt'],
-                                               step=0.01, format="%.2f")
 
                 # Update simulator scaling factors
                 simulator.interruption_scales.update({
