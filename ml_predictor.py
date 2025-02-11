@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 from datetime import datetime, timedelta
 
-class WorkflowPredictor:
+class MLPredictor:
     def __init__(self):
         self.workload_model = RandomForestRegressor(n_estimators=100, random_state=42)
         self.burnout_model = RandomForestRegressor(n_estimators=100, random_state=42)
