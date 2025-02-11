@@ -90,15 +90,15 @@ class WorkflowSimulator:
         # If there's no work, efficiency should be 100%
         if workload == 0 and adc == 0 and critical_events_per_day == 0:
             return 1.0
-
+        
         base_efficiency = 1.0
         interruption_impact = sum(self.interruption_scales.values()) * 0.1  # Scale based on configured rates
         workload_impact = 0.15 * (adc / providers) if providers > 0 and adc > 0 else 0  # Scale impact by patient load per provider
-
+        
         # Adjust base efficiency based on ADC per provider ratio
         patients_per_provider = adc / providers if providers > 0 else 0
         base_efficiency = min(1.0, 1.2 - (patients_per_provider * 0.15))  # Decrease efficiency as patients/provider increases
-
+        
         # Account for rounding inefficiency (9-11 AM) only if there are patients
         rounding_impact = 0
         if adc > 0:
@@ -106,16 +106,16 @@ class WorkflowSimulator:
             rounding_overhead = 0.8  # 80% overhead during rounds
             data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
             rounding_impact = (rounding_overhead + data_collection_inefficiency) * (rounding_hours / shift_hours)
-
+        
         # Calculate critical event impact on efficiency, accounting for parallel provider work
         critical_first_hour = min(60, self.critical_event_time)
         critical_remaining = max(0, self.critical_event_time - 60)
-
+        
         # During first hour, both providers are unavailable (full impact)
         total_unavailable_time = critical_first_hour * critical_events_per_day
         # After first hour, one provider remains on critical event (half impact due to parallel capacity)
         partial_unavailable_time = critical_remaining * critical_events_per_day
-
+        
         # Calculate effective shift time reduction accounting for parallel provider capacity
         shift_minutes = shift_hours * 60
         total_provider_minutes = shift_minutes * providers if providers > 0 else shift_minutes
@@ -123,10 +123,10 @@ class WorkflowSimulator:
             (total_unavailable_time * 2) +  # Both providers unavailable
             partial_unavailable_time        # One provider unavailable
         ) / total_provider_minutes if total_provider_minutes > 0 else 0
-
+        
         total_interruptions = interruptions_per_hour * shift_hours
         regular_efficiency_loss = (total_interruptions * interruption_impact) + (max(0, workload - 1.0) * workload_impact)
-
+        
         # Set minimum efficiency to 30% only if there is actual work
         if workload == 0 and adc == 0 and critical_events_per_day == 0:
             return 1.0
@@ -135,16 +135,22 @@ class WorkflowSimulator:
         
     def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
         """Calculate simple burnout risk metric"""
+        # If there's no work, burnout risk should be 0
+        if workload_per_provider == 0 and interruptions_per_hour == 0 and critical_events_per_day == 0:
+            return 0.0
+
         # Calculate risk components consistently with detailed calculation
         interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
         workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
         critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
-        
-        # Add consistent rounding inefficiency impact
-        rounding_overhead = 0.8  # 80% overhead during rounds
-        data_collection_inefficiency = 0.3  # 30% inefficiency
-        rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
-        
+
+        # Only apply rounding impact if there is actual workload
+        rounding_impact = 0
+        if workload_per_provider > 0:
+            rounding_overhead = 0.8  # 80% overhead during rounds
+            data_collection_inefficiency = 0.3  # 30% inefficiency
+            rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
+
         # Use same weighting as detailed calculation
         base_risk = min(1.0, (interruption_factor * 0.2) + (workload_factor * 0.25) +
                        (critical_factor * 0.2) + (rounding_impact * 0.35))
@@ -205,28 +211,28 @@ class WorkflowSimulator:
         # If there's no work, cognitive load should be 0
         if workload == 0 and critical_events_per_day == 0 and admissions == 0 and interruptions == 0:
             return 0
-
+        
         base_load = 30 if workload > 0 else 0  # baseline cognitive load only applies if there's work
-
+        
         # Factor in time impact of interruptions using actual duration settings
         avg_interrupt_time = sum(self.interruption_times.values()) / len(self.interruption_times)
         interrupt_factor = interruptions * (avg_interrupt_time / 60)  # Convert to hours
-
+        
         # Factor in time impact of critical events using configured duration
         critical_factor = critical_events_per_day * (self.critical_event_time / 60)  # normalized by hour
-
+        
         # Factor in admission complexity using configured durations
         avg_admission_time = (self.admission_times['simple'] + self.admission_times['complex']) / 2
         admission_factor = admissions * (avg_admission_time / 60)  # normalized by hour
-
+        
         # Additional load for high workload
         workload_factor = max(0, (workload - 1.0) * 20)
-
+        
         # Scale factors to maintain reasonable cognitive load range
         interrupt_scale = 5   # 5 points per hour of interruptions
         critical_scale = 10   # 10 points per hour of critical events
         admission_scale = 8   # 8 points per hour of admissions
-
+        
         total_load = (
             base_load +
             (interrupt_factor * interrupt_scale) +
@@ -234,5 +240,5 @@ class WorkflowSimulator:
             (admission_factor * admission_scale) +
             workload_factor
         )
-
+        
         return min(100, total_load)
