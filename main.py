@@ -10,6 +10,7 @@ from utils import (calculate_interruptions, calculate_workload,
                   generate_report_data, format_recommendations)
 from simulator import WorkflowSimulator
 from models import get_db, save_workflow_record, get_historical_records
+from ml_predictor import MLPredictor
 
 def main():
     st.set_page_config(
@@ -24,6 +25,11 @@ def main():
     # Initialize simulator in session state if not present
     if 'simulator' not in st.session_state:
         st.session_state.simulator = WorkflowSimulator()
+
+    # Initialize ML predictor and training status
+    if 'predictor' not in st.session_state:
+        st.session_state.predictor = MLPredictor()
+        st.session_state.model_trained = False
 
     # User Type Selection
     user_type = st.radio(
