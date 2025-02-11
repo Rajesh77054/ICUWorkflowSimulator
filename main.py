@@ -66,8 +66,12 @@ def main():
         # Interruption Configuration (Right Column)
         with col2:
             st.markdown("### Interruption Factors")
+            st.caption("*Note: Frequencies auto-scale with ICU Census*")
 
-            with st.expander("Nursing Questions", expanded=True):
+            # Nursing Questions Container
+            st.markdown("#### Nursing Questions")
+            nq_col1, nq_col2 = st.columns(2)
+            with nq_col1:
                 nursing_scale = st.number_input(
                     "Rate (per patient per hour)", 
                     0.0, 2.0,
@@ -77,9 +81,13 @@ def main():
                 )
                 nursing_q = adc * nursing_scale
                 st.metric("Current Rate", f"{nursing_q:.1f}/hour")
+            with nq_col2:
                 nursing_time = st.slider("Duration (minutes)", 1, 10, 2)
 
-            with st.expander("Exam Callbacks", expanded=True):
+            # Exam Callbacks Container
+            st.markdown("#### Exam Callbacks")
+            ec_col1, ec_col2 = st.columns(2)
+            with ec_col1:
                 callback_scale = st.number_input(
                     "Rate (per patient per hour)", 
                     0.0, 2.0,
@@ -89,9 +97,13 @@ def main():
                 )
                 exam_callbacks = adc * callback_scale
                 st.metric("Current Rate", f"{exam_callbacks:.1f}/hour")
+            with ec_col2:
                 callback_time = st.slider("Duration (minutes)", 1, 20, 8)
 
-            with st.expander("Peer Interruptions", expanded=True):
+            # Peer Interruptions Container
+            st.markdown("#### Peer Interruptions")
+            pi_col1, pi_col2 = st.columns(2)
+            with pi_col1:
                 peer_scale = st.number_input(
                     "Rate (per patient per hour)", 
                     0.0, 2.0,
@@ -101,6 +113,7 @@ def main():
                 )
                 peer_interrupts = adc * peer_scale
                 st.metric("Current Rate", f"{peer_interrupts:.1f}/hour")
+            with pi_col2:
                 peer_time = st.slider("Duration (minutes)", 1, 20, 8)
 
         # Critical Events Configuration (Bottom Section)
