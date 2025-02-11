@@ -29,27 +29,36 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
 def calculate_workload(adc, admissions, consults, transfers, critical_events, providers, simulator):
     """Calculate workload relative to total available shift minutes
 
-    Base workload determined by ADC (0-16 patients), then divided by providers.
-    Additional tasks and events add to per-provider workload.
-    
+    Workload is determined by two primary components:
+    1. ICU Census (ADC) - Primary workload driver
+    2. Floor Consults - Additional workload component
+
+    Other factors (admissions, transfers, critical events) are treated as interruptions
+    that impact workflow dynamics but don't contribute to base workload.
+
     Args:
         adc: Average Daily Census (0-16 patients)
-        providers: Number of providers
-        Other args: Additional workload factors
+        consults: Number of floor consults
+        providers: Number of providers working in parallel
+        Other args: Interruption factors
     """
-    # Calculate base workload from ADC (scales 0-1 for 0-16 patients)
-    base_workload = adc / 16.0
-    
-    # Calculate additional time required for all tasks
-    admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                 0.3 * simulator.admission_times['complex'])
-    consult_time = consults * simulator.admission_times['consult']
-    transfer_time = transfers * simulator.admission_times['transfer']
+    # Calculate base ICU workload (scales 0-1 for 0-16 patients)
+    icu_workload = adc / 16.0
 
-    # Critical events have special handling since they require specific provider allocation
+    # Calculate floor consults workload (each consult adds proportional load)
+    consult_time = consults * simulator.admission_times['consult']
+    consult_workload = consult_time / (12 * 60)  # Normalize to shift duration
+
+    # Base workload is the sum of ICU and consult components
+    base_workload = icu_workload + consult_workload
+
+    # Calculate interruption impacts
+    admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
+                                0.3 * simulator.admission_times['complex'])
+    transfer_time = transfers * simulator.admission_times['transfer']
     critical_time = critical_events * simulator.critical_event_time
 
-    # Calculate interruption time using actual rates
+    # Calculate interruption time (this is handled separately in calculate_interruptions)
     interruption_time = simulator.calculate_total_interruption_time(
         nursing_q=adc * simulator.interruption_scales['nursing_question'],
         exam_callbacks=adc * simulator.interruption_scales['exam_callback'],
@@ -57,31 +66,19 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
         providers=providers
     )
 
-    # Normalize times to per-provider capacity
-    normalized_admission_time = admission_time / providers
-    normalized_consult_time = consult_time / providers
-    normalized_transfer_time = transfer_time / providers
-    
-    # Critical events require specific provider allocation
-    critical_impact = (critical_time / providers) * 1.5  # 50% overhead due to coordination
-    
-    # Interruption time is already normalized by provider count
-    normalized_interruption_time = interruption_time / providers
+    # Calculate total required minutes for interrupting tasks
+    interruption_minutes = admission_time + transfer_time + critical_time + interruption_time
 
-    # Calculate total required minutes per provider
-    total_required_minutes = (normalized_admission_time + 
-                            normalized_consult_time + 
-                            normalized_transfer_time + 
-                            critical_impact + 
-                            normalized_interruption_time)
+    # Calculate total available minutes across all providers working in parallel
+    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
 
-    # Available minutes per provider
-    available_minutes = 12 * 60  # hours * minutes_per_hour
+    # Factor in interruptions impact on workload
+    interruption_impact = interruption_minutes / available_minutes
 
-    # Calculate relative workload (>1.0 indicates overload)
-    relative_workload = total_required_minutes / available_minutes
+    # Final workload is base_workload plus normalized interruption impact
+    total_workload = (base_workload + interruption_impact) / providers
 
-    return relative_workload
+    return total_workload
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
     # Calculate time impact per hour using current simulator settings

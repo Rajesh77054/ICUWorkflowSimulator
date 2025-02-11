@@ -1,307 +1,195 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import json
 from datetime import datetime
 from styles import apply_custom_styles, section_header
 from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
-                  create_workload_timeline, generate_report_data,
-                  format_recommendations, create_burnout_gauge,
-                  create_burnout_radar_chart, create_burnout_trend_chart,
-                  format_burnout_recommendations, create_prediction_trend_chart,
-                  create_feature_importance_chart)
+                  create_workload_timeline, create_burnout_gauge,
+                  create_burnout_radar_chart, create_prediction_trend_chart,
+                  generate_report_data, format_recommendations)
 from simulator import WorkflowSimulator
-from ml_predictor import WorkflowPredictor
 from models import get_db, save_workflow_record, get_historical_records
 
-# Initialize predictor in session state
-if 'predictor' not in st.session_state:
-    st.session_state.predictor = WorkflowPredictor()
-    st.session_state.model_trained = False
-
 def main():
+    st.set_page_config(
+        page_title="ICU Workflow Dynamics Model",
+        page_icon="🏥",
+        layout="wide"
+    )
+
+    apply_custom_styles()
+    st.title("ICU Workflow Dynamics Model")
+
+    # Initialize simulator in session state if not present
+    if 'simulator' not in st.session_state:
+        st.session_state.simulator = WorkflowSimulator()
+
+    # User Type Selection
+    user_type = st.radio(
+        "Select Your Role",
+        ["Provider", "Administrator"],
+        horizontal=True,
+        help="Choose your role to see relevant metrics and insights"
+    )
+
+    # Workflow Configuration Section
+    with st.expander("⚙️ Workflow Configuration", expanded=True):
+        col1, col2 = st.columns(2)
+
+        # Base Workload Components (Left Column)
+        with col1:
+            st.markdown("### Primary Workload")
+
+            # ICU Census
+            adc = st.number_input(
+                "ICU Census (ADC)", 
+                0, 16, 8, 1,
+                help="Average Daily Census - Primary ICU workload driver"
+            )
+            st.caption("ADC determines base workload and scales interruption frequencies")
+
+            # Floor Consults
+            consults = st.number_input(
+                "Floor Consults (per shift)", 
+                0, 20, 4,
+                help="Additional workload from non-ICU consultations"
+            )
+
+            # Providers
+            providers = st.number_input(
+                "Number of Providers", 
+                1, 10, 2,
+                help="Available providers working in parallel"
+            )
+
+        # Interruption Configuration (Right Column)
+        with col2:
+            st.markdown("### Interruption Factors")
+
+            with st.expander("Nursing Questions", expanded=True):
+                nursing_scale = st.number_input(
+                    "Rate (per patient per hour)", 
+                    0.0, 2.0,
+                    value=st.session_state.simulator.interruption_scales['nursing_question'],
+                    step=0.01, 
+                    format="%.2f"
+                )
+                nursing_q = adc * nursing_scale
+                st.metric("Current Rate", f"{nursing_q:.1f}/hour")
+                nursing_time = st.slider("Duration (minutes)", 1, 10, 2)
+
+            with st.expander("Exam Callbacks", expanded=True):
+                callback_scale = st.number_input(
+                    "Rate (per patient per hour)", 
+                    0.0, 2.0,
+                    value=st.session_state.simulator.interruption_scales['exam_callback'],
+                    step=0.01, 
+                    format="%.2f"
+                )
+                exam_callbacks = adc * callback_scale
+                st.metric("Current Rate", f"{exam_callbacks:.1f}/hour")
+                callback_time = st.slider("Duration (minutes)", 1, 20, 8)
+
+            with st.expander("Peer Interruptions", expanded=True):
+                peer_scale = st.number_input(
+                    "Rate (per patient per hour)", 
+                    0.0, 2.0,
+                    value=st.session_state.simulator.interruption_scales['peer_interrupt'],
+                    step=0.01, 
+                    format="%.2f"
+                )
+                peer_interrupts = adc * peer_scale
+                st.metric("Current Rate", f"{peer_interrupts:.1f}/hour")
+                peer_time = st.slider("Duration (minutes)", 1, 20, 8)
+
+        # Critical Events Configuration (Bottom Section)
+        st.markdown("### Critical Events")
+        ce_col1, ce_col2, ce_col3 = st.columns(3)
+
+        with ce_col1:
+            admissions = st.number_input(
+                "New Admissions (per shift)", 
+                0, 20, 3,
+                help="Expected new ICU admissions"
+            )
+            simple_admission_time = st.number_input(
+                "Simple Admission Duration", 
+                30, 120, 60,
+                help="Minutes required for straightforward admissions"
+            )
+
+        with ce_col2:
+            transfers = st.number_input(
+                "Transfer Calls (per shift)", 
+                0, 20, 2,
+                help="Expected transfer requests"
+            )
+            complex_admission_time = st.number_input(
+                "Complex Admission Duration", 
+                45, 180, 90,
+                help="Minutes required for complex admissions"
+            )
+
+        with ce_col3:
+            critical_events = st.number_input(
+                "Critical Events (per week)", 
+                0, 50, 5,
+                help="Expected critical events requiring immediate attention"
+            )
+            critical_event_time = st.number_input(
+                "Critical Event Duration", 
+                60, 180, 105,
+                help="Average minutes per critical event"
+            )
+
     try:
-        st.set_page_config(
-            page_title="ICU Workflow Dynamics Model",
-            page_icon="🏥",
-            layout="wide"
-        )
+        # Update simulator settings
+        st.session_state.simulator.update_time_settings({
+            'interruption_times': {
+                'nursing_question': nursing_time,
+                'exam_callback': callback_time,
+                'peer_interrupt': peer_time
+            },
+            'admission_times': {
+                'simple': simple_admission_time,
+                'complex': complex_admission_time,
+                'transfer': 30  # Default transfer time
+            },
+            'critical_event_time': critical_event_time
+        })
 
-        apply_custom_styles()
-
-        st.title("ICU Workflow Dynamics Model")
-
-        # User Type Selection
-        user_type = st.radio(
-            "Select Your Role",
-            ["Provider", "Administrator"],
-            horizontal=True,
-            help="Choose your role to see relevant metrics and insights"
-        )
-
-        simulator = WorkflowSimulator()
-
-        # Common Configuration Section (collapsible)
-        with st.expander("⚙️ Workflow Configuration"):
-            tab1, tab2, tab3 = st.tabs(["Workflow Metrics", "Time Estimates", "Scaling Factors"])
-
-            with tab1:
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1))
-
-                    # Calculate scaled interruptions based on ADC and update scaling factors if inputs change
-                    nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 
-                                  round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5,
-                                  on_change=lambda: sync_scale_to_metrics('nursing_question'),
-                                  key='nursing_question_metric'))
-
-                    exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0,
-                                       round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5,
-                                       on_change=lambda: sync_scale_to_metrics('exam_callback'),
-                                       key='exam_callback_metric'))
-
-                    peer_interrupts = max(0.0, st.number_input("Peer Interruptions (per hour)", 0.0, 20.0,
-                                        round(adc * simulator.interruption_scales['peer_interrupt'], 1), 0.5,
-                                        on_change=lambda: sync_scale_to_metrics('peer_interrupt'),
-                                        key='peer_interrupt_metric'))
-
-                    providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
-
-                with col2:
-                    admissions = max(0, st.number_input("New Admissions (per dayshift)", 0, 20, 3))
-                    consults = max(0, st.number_input("Floor Consults (per dayshift)", 0, 20, 4))
-                    transfers = max(0, st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2))
-                    critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5))
-
-            with tab2:
-                st.markdown("#### Time Duration Estimates")
-
-                # Interruption times
-                st.subheader("Interruption Times (minutes)")
-                int_col1, int_col2, int_col3 = st.columns(3)
-                with int_col1:
-                    nursing_time = st.number_input("Nursing Question Duration", 1, 10, 2, 1)
-                with int_col2:
-                    callback_time = st.number_input("Exam Callback Duration", 1, 20, 8, 1)
-                with int_col3:
-                    peer_time = st.number_input("Peer Interrupt Duration", 1, 20, 8, 1)
-
-                # Admission times
-                st.subheader("Admission Times (minutes)")
-                adm_col1, adm_col2 = st.columns(2)
-                with adm_col1:
-                    simple_admission_time = st.number_input("Simple Admission Duration", 30, 120, 60, 5)
-                    consult_time = st.number_input("Floor Consult Duration", 15, 90, 45, 5)
-                with adm_col2:
-                    complex_admission_time = st.number_input("Complex Admission Duration", 45, 180, 90, 5)
-                    transfer_time = st.number_input("Transfer Call Duration", 15, 60, 30, 5)
-
-                # Critical event time
-                st.subheader("Critical Event Time (minutes)")
-                critical_event_time = st.number_input("Critical Event Duration", 60, 180, 105, 5)
-
-                with tab3:
-                    st.markdown("#### Interruption Scaling Factors (per patient per hour)")
-                    scaling_col1, scaling_col2, scaling_col3 = st.columns(3)
-
-                    if 'scaling_factors' not in st.session_state:
-                        st.session_state.scaling_factors = simulator.interruption_scales.copy()
-
-                    def update_all_metrics(nursing_q, exam_callbacks, peer_interrupts):
-                        """Update all dependent metrics and session state values"""
-                        # Calculate core metrics
-                        interrupts_per_provider, time_lost = calculate_interruptions(
-                            nursing_q, exam_callbacks, peer_interrupts, providers, simulator
-                        )
-
-                        # Calculate workload
-                        workload = calculate_workload(
-                            adc, admissions, consults, transfers,
-                            critical_events/7, providers, simulator
-                        )
-
-                        # Calculate time impacts
-                        interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
-                            nursing_q, exam_callbacks, peer_interrupts,
-                            admissions, consults, transfers, critical_events/7, providers
-                        )
-
-                        # Update session state with all metrics
-                        st.session_state.interrupts_per_provider = interrupts_per_provider
-                        st.session_state.time_lost = time_lost
-                        st.session_state.workload = workload
-                        st.session_state.interrupt_time = interrupt_time
-                        st.session_state.admission_time = admission_time
-                        st.session_state.critical_time = critical_time
-
-                        # Calculate and update efficiency
-                        st.session_state.efficiency = simulator.simulate_provider_efficiency(
-                            nursing_q + exam_callbacks + peer_interrupts,
-                            providers, workload, critical_events/7, adc
-                        )
-
-                        # Calculate and update cognitive load
-                        st.session_state.cognitive_load = simulator.calculate_cognitive_load(
-                            interrupts_per_provider, critical_events/7,
-                            admissions, workload
-                        )
-
-                        # Calculate burnout risk
-                        st.session_state.burnout_risk = simulator.calculate_burnout_risk(
-                            workload/providers, (nursing_q + exam_callbacks + peer_interrupts)/providers,
-                            critical_events/7
-                        )
-
-                    def sync_metrics_to_scale(key):
-                        """Sync metric value to scaling factor"""
-                        if f'{key}_metric' in st.session_state:
-                            value = st.session_state[f'{key}_metric']
-                            if adc > 0:
-                                new_scale = value / adc
-                                simulator.interruption_scales[key] = new_scale
-                                st.session_state[f'{key}_input'] = new_scale
-                                st.session_state.scaling_factors[key] = new_scale
-
-                            # Update all dependent values
-                            nursing_q = adc * simulator.interruption_scales['nursing_question']
-                            exam_callbacks = adc * simulator.interruption_scales['exam_callback']
-                            peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
-
-                            # Calculate core metrics
-                            interrupts_per_provider, time_lost = calculate_interruptions(
-                                nursing_q, exam_callbacks, peer_interrupts, providers, simulator
-                            )
-
-                            # Calculate workload
-                            workload = calculate_workload(
-                                adc, admissions, consults, transfers,
-                                critical_events/7, providers, simulator
-                            )
-
-                            # Update all session state values
-                            st.session_state.interrupts_per_provider = interrupts_per_provider
-                            st.session_state.time_lost = time_lost
-                            st.session_state.workload = workload
-                            st.session_state.efficiency = simulator.simulate_provider_efficiency(
-                                nursing_q + exam_callbacks + peer_interrupts,
-                                providers, workload, critical_events/7, adc
-                            )
-                            st.session_state.cognitive_load = simulator.calculate_cognitive_load(
-                                interrupts_per_provider, critical_events/7,
-                                admissions, workload
-                            )
-
-                    def sync_scale_to_metrics(key):
-                        """Sync scaling factor to metric value"""
-                        if f'{key}_input' in st.session_state:
-                            scale = st.session_state[f'{key}_input']
-                            simulator.interruption_scales[key] = scale
-                            st.session_state.scaling_factors[key] = scale
-                            if adc > 0:
-                                st.session_state[f'{key}_metric'] = scale * adc
-
-                            # Update all dependent values
-                            nursing_q = adc * simulator.interruption_scales['nursing_question']
-                            exam_callbacks = adc * simulator.interruption_scales['exam_callback']
-                            peer_interrupts = adc * simulator.interruption_scales['peer_interrupt']
-
-                            # Calculate and update all metrics
-                            interrupts_per_provider, time_lost = calculate_interruptions(
-                                nursing_q, exam_callbacks, peer_interrupts, providers, simulator
-                            )
-                            workload = calculate_workload(
-                                adc, admissions, consults, transfers,
-                                critical_events/7, providers, simulator
-                            )
-
-                            # Update all session state values
-                            st.session_state.interrupts_per_provider = interrupts_per_provider
-                            st.session_state.time_lost = time_lost
-                            st.session_state.workload = workload
-                            st.session_state.efficiency = simulator.simulate_provider_efficiency(
-                                nursing_q + exam_callbacks + peer_interrupts,
-                                providers, workload, critical_events/7, adc
-                            )
-                            st.session_state.cognitive_load = simulator.calculate_cognitive_load(
-                                interrupts_per_provider, critical_events/7,
-                                admissions, workload
-                            )
-
-                    with scaling_col1:
-                        nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0,
-                                                      value=st.session_state.scaling_factors['nursing_question'],
-                                                      step=0.01, format="%.2f",
-                                                      on_change=lambda: sync_metrics_to_scale('nursing_question'),
-                                                      key='nursing_question_input')
-                    with scaling_col2:
-                        callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
-                                                       value=st.session_state.scaling_factors['exam_callback'],
-                                                       step=0.01, format="%.2f",
-                                                       on_change=lambda: sync_metrics_to_scale('exam_callback'),
-                                                       key='exam_callback_input')
-                    with scaling_col3:
-                        peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
-                                                   value=st.session_state.scaling_factors['peer_interrupt'],
-                                                   step=0.01, format="%.2f",
-                                                   on_change=lambda: sync_metrics_to_scale('peer_interrupt'),
-                                                   key='peer_interrupt_input')
-
-                # Recalculate interruption rates based on new scaling factors
-                nursing_q = max(0.0, adc * simulator.interruption_scales['nursing_question'])
-                exam_callbacks = max(0.0, adc * simulator.interruption_scales['exam_callback'])
-                peer_interrupts = max(0.0, adc * simulator.interruption_scales['peer_interrupt'])
-
-                # Update simulator settings
-                simulator.update_time_settings({
-                    'interruption_times': {
-                        'nursing_question': nursing_time,
-                        'exam_callback': callback_time,
-                        'peer_interrupt': peer_time
-                    },
-                    'admission_times': {
-                        'simple': simple_admission_time,
-                        'complex': complex_admission_time,
-                        'consult': consult_time,
-                        'transfer': transfer_time
-                    },
-                    'critical_event_time': critical_event_time
-                })
-
-        # Calculate core metrics
+        # Calculate metrics
         interrupts_per_provider, time_lost = calculate_interruptions(
             nursing_q, exam_callbacks, peer_interrupts,
-            providers, simulator  # Pass simulator instance
+            providers, st.session_state.simulator
         )
 
         workload = calculate_workload(
             adc, admissions, consults, transfers,
-            critical_events/7, providers, simulator  # Pass simulator instance
+            critical_events/7, providers, st.session_state.simulator
         )
 
         critical_events_per_day = critical_events / 7.0
 
-        interrupt_time, admission_time, critical_time = simulator.calculate_time_impact(
+        interrupt_time, admission_time, critical_time = st.session_state.simulator.calculate_time_impact(
             nursing_q, exam_callbacks, peer_interrupts,
             admissions, consults, transfers, critical_events_per_day,
             providers
         )
 
-
-        efficiency = simulator.simulate_provider_efficiency(
+        efficiency = st.session_state.simulator.simulate_provider_efficiency(
             nursing_q + exam_callbacks + peer_interrupts,
             providers, workload, critical_events_per_day, adc
         )
 
-        burnout_risk = simulator.calculate_burnout_risk(
+        burnout_risk = st.session_state.simulator.calculate_burnout_risk(
             workload,
             interrupts_per_provider,
             critical_events_per_day
         )
 
-        cognitive_load = simulator.calculate_cognitive_load(
+        cognitive_load = st.session_state.simulator.calculate_cognitive_load(
             interrupts_per_provider,
             critical_events_per_day,
             admissions,
@@ -344,7 +232,7 @@ def main():
             # Visual Timeline
             st.plotly_chart(
                 create_workload_timeline(
-                    workload, providers, critical_events_per_day, simulator
+                    workload, providers, critical_events_per_day, st.session_state.simulator
                 ),
                 use_container_width=True
             )
@@ -354,7 +242,7 @@ def main():
             with col1:
                 st.plotly_chart(
                     create_interruption_chart(
-                        nursing_q, exam_callbacks, peer_interrupts, simulator
+                        nursing_q, exam_callbacks, peer_interrupts, st.session_state.simulator
                     ),
                     use_container_width=True
                 )
@@ -384,7 +272,7 @@ def main():
                 st.plotly_chart(
                     create_burnout_gauge(
                         burnout_risk,
-                        simulator.burnout_thresholds
+                        st.session_state.simulator.burnout_thresholds
                     ),
                     use_container_width=True
                 )
@@ -480,8 +368,7 @@ def main():
                     )
 
     except Exception as e:
-        st.error(f"An unexpected error occurred: {str(e)}")
-        return
+        st.error(f"An error occurred: {str(e)}")
 
 if __name__ == "__main__":
     main()
