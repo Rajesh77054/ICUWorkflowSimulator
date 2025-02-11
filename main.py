@@ -82,7 +82,7 @@ def main():
                 nursing_q = adc * nursing_scale
                 st.metric("Current Rate", f"{nursing_q:.1f}/hour")
             with nq_col2:
-                nursing_time = st.slider("Duration (minutes)", 1, 10, 2)
+                nursing_time = st.slider("Duration (minutes)", 1, 10, 2, key="nursing_duration")
 
             # Exam Callbacks Container
             st.markdown("#### Exam Callbacks")
@@ -98,7 +98,7 @@ def main():
                 exam_callbacks = adc * callback_scale
                 st.metric("Current Rate", f"{exam_callbacks:.1f}/hour")
             with ec_col2:
-                callback_time = st.slider("Duration (minutes)", 1, 20, 8)
+                callback_time = st.slider("Duration (minutes)", 1, 20, 8, key="callback_duration")
 
             # Peer Interruptions Container
             st.markdown("#### Peer Interruptions")
@@ -114,7 +114,7 @@ def main():
                 peer_interrupts = adc * peer_scale
                 st.metric("Current Rate", f"{peer_interrupts:.1f}/hour")
             with pi_col2:
-                peer_time = st.slider("Duration (minutes)", 1, 20, 8)
+                peer_time = st.slider("Duration (minutes)", 1, 20, 8, key="peer_duration")
 
         # Critical Events Configuration (Bottom Section)
         st.markdown("### Critical Events")
