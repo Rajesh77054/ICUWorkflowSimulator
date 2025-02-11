@@ -160,8 +160,10 @@ def main():
                         if f'{key}_metric' in st.session_state:
                             value = st.session_state[f'{key}_metric']
                             if adc > 0:
-                                simulator.interruption_scales[key] = value / adc
-                                st.session_state[f'{key}_input'] = value / adc
+                                new_scale = value / adc
+                                simulator.interruption_scales[key] = new_scale
+                                st.session_state[f'{key}_input'] = new_scale
+                                st.session_state.scaling_factors[key] = new_scale
 
                             # Update all dependent values
                             nursing_q = adc * simulator.interruption_scales['nursing_question']
@@ -197,6 +199,7 @@ def main():
                         if f'{key}_input' in st.session_state:
                             scale = st.session_state[f'{key}_input']
                             simulator.interruption_scales[key] = scale
+                            st.session_state.scaling_factors[key] = scale
                             if adc > 0:
                                 st.session_state[f'{key}_metric'] = scale * adc
 
