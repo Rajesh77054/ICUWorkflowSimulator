@@ -47,16 +47,42 @@ def main():
             tab1, tab2, tab3 = st.tabs(["Workflow Metrics", "Time Estimates", "Scaling Factors"])
 
             with tab1:
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1))
-
-                    # Calculate scaled interruptions based on ADC and update scaling factors if inputs change
-                    nursing_q = max(0.0, st.number_input("Nursing Questions (per hour)", 0.0, 20.0, 
-                                  round(adc * simulator.interruption_scales['nursing_question'], 1), 0.5,
-                                  on_change=lambda: sync_scale_to_metrics('nursing_question'),
-                                  key='nursing_question_metric'))
+                st.subheader("ICU Patient Load")
+                adc = max(0, st.number_input("Average Daily Census (ADC)", 0, 16, 8, 1,
+                         help="Number of occupied ICU beds (0-16)"))
+                
+                st.subheader("Per-Patient Interruption Rates (per hour)")
+                int_col1, int_col2, int_col3 = st.columns(3)
+                
+                with int_col1:
+                    nursing_scale = st.number_input("Nursing Questions Rate", 0.0, 2.0, 
+                                                  value=simulator.interruption_scales['nursing_question'],
+                                                  step=0.1, format="%.2f",
+                                                  help="Hourly rate of nursing questions per patient",
+                                                  key='nursing_question_scale')
+                    
+                    nursing_q = adc * nursing_scale if adc > 0 else 0.0
+                    st.metric("Total Nursing Questions", f"{nursing_q:.1f}/hr")
+                
+                with int_col2:
+                    callback_scale = st.number_input("Exam Callbacks Rate", 0.0, 2.0,
+                                                   value=simulator.interruption_scales['exam_callback'],
+                                                   step=0.1, format="%.2f",
+                                                   help="Hourly rate of exam callbacks per patient",
+                                                   key='exam_callback_scale')
+                    
+                    exam_callbacks = adc * callback_scale if adc > 0 else 0.0
+                    st.metric("Total Callbacks", f"{exam_callbacks:.1f}/hr")
+                
+                with int_col3:
+                    peer_scale = st.number_input("Peer Interrupts Rate", 0.0, 2.0,
+                                               value=simulator.interruption_scales['peer_interrupt'],
+                                               step=0.1, format="%.2f",
+                                               help="Hourly rate of peer interruptions per patient",
+                                               key='peer_interrupt_scale')
+                    
+                    peer_interrupts = adc * peer_scale if adc > 0 else 0.0
+                    st.metric("Total Peer Interrupts", f"{peer_interrupts:.1f}/hr")
 
                     exam_callbacks = max(0.0, st.number_input("Exam Callbacks (per hour)", 0.0, 20.0,
                                        round(adc * simulator.interruption_scales['exam_callback'], 1), 0.5,
@@ -70,11 +96,24 @@ def main():
 
                     providers = max(1, st.number_input("Number of Providers", 1, 10, 2))
 
-                with col2:
-                    admissions = max(0, st.number_input("New Admissions (per dayshift)", 0, 20, 3))
-                    consults = max(0, st.number_input("Floor Consults (per dayshift)", 0, 20, 4))
-                    transfers = max(0, st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2))
-                    critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5))
+                st.subheader("Independent Workload")
+                work_col1, work_col2 = st.columns(2)
+                
+                with work_col1:
+                    admissions = max(0, st.number_input("New Admissions (per dayshift)", 0, 20, 3,
+                                   help="Number of new ICU admissions per shift"))
+                    consults = max(0, st.number_input("Floor Consults (per dayshift)", 0, 20, 4,
+                                 help="Number of floor consults per shift"))
+                
+                with work_col2:
+                    transfers = max(0, st.number_input("Transfer Center Calls (per dayshift)", 0, 20, 2,
+                                 help="Number of transfer center calls per shift"))
+                    critical_events = max(0, st.number_input("Critical Events (per week)", 0, 50, 5,
+                                       help="Number of critical events per week"))
+                
+                st.subheader("Staffing")
+                providers = max(1, st.number_input("Number of Providers", 1, 10, 2,
+                              help="Number of providers working in parallel"))
 
             with tab2:
                 st.markdown("#### Time Duration Estimates")
