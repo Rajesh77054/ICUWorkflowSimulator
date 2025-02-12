@@ -171,7 +171,7 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
 
     return fig
 
-def create_workload_timeline(workload, providers, critical_events_per_day, simulator):
+def create_workload_timeline(workload, providers, critical_events_per_day, admissions, simulator):
     """Create timeline showing projected workload with tooltip explanation
 
     The workload timeline shows the relative workload throughout the day where:

@@ -251,7 +251,7 @@ def main():
             # Visual Timeline
             st.plotly_chart(
                 create_workload_timeline(
-                    workload, providers, critical_events_per_day, st.session_state.simulator
+                    workload, providers, critical_events_per_day, admissions, st.session_state.simulator
                 ),
                 use_container_width=True
             )
