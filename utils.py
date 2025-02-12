@@ -49,16 +49,20 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
     consult_time = consults * simulator.admission_times['consult']
     consult_workload = consult_time / (12 * 60)  # Normalize to shift duration
 
-    # Base workload is the sum of ICU and consult components
+    # Base workload is the sum of ICU and consult components only
     base_workload = icu_workload + consult_workload
+
+    # If there's no base workload (no ADC and no consults), return 0
+    if adc == 0 and consults == 0:
+        return 0.0
 
     # Calculate interruption impacts
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                 0.3 * simulator.admission_times['complex'])
-    transfer_time = transfers * simulator.admission_times['transfer']
+    transfer_time = transfers * simulator.admission_times['transfer']  # Now treated as interruption only
     critical_time = critical_events * simulator.critical_event_time
 
-    # Calculate interruption time (this is handled separately in calculate_interruptions)
+    # Calculate interruption time
     interruption_time = simulator.calculate_total_interruption_time(
         nursing_q=adc * simulator.interruption_scales['nursing_question'],
         exam_callbacks=adc * simulator.interruption_scales['exam_callback'],
