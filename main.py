@@ -199,7 +199,7 @@ def main():
 
         efficiency = st.session_state.simulator.simulate_provider_efficiency(
             nursing_q + exam_callbacks + peer_interrupts,
-            providers, workload, critical_events_per_day, adc
+            providers, workload, critical_events_per_day, admissions, adc
         )
 
         burnout_risk = st.session_state.simulator.calculate_burnout_risk(
