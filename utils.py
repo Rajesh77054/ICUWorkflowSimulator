@@ -212,8 +212,33 @@ def create_workload_timeline(workload, providers, critical_events_per_day, simul
     # Scale critical impact by actual duration vs default
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
-    # Calculate timeline values - workload already accounts for parallel provider capacity
-    workload_timeline = workload * (1 + base_variation + scaled_critical_impact)
+    # Generate random event distributions
+    admission_times = sorted(np.random.choice(len(hours) * 60, size=admissions, replace=False)) // 60
+    critical_event_times = sorted(np.random.choice(len(hours) * 60, size=int(critical_events_per_day), replace=False)) // 60
+    
+    # Initialize workload timeline with base variation
+    workload_timeline = np.ones(len(hours)) * workload * (1 + base_variation)
+    
+    # Add admission impacts
+    for time in admission_times:
+        if time < len(hours):
+            # Increase workload for admission duration
+            duration = 2  # Impact lasts ~2 hours
+            end_time = min(time + duration, len(hours))
+            workload_timeline[time:end_time] *= (providers / (providers - 1)) if providers > 1 else 2.0
+            
+    # Add critical event impacts
+    for time in critical_event_times:
+        if time < len(hours):
+            # First hour - both providers unavailable
+            first_hour = min(time + 1, len(hours))
+            workload_timeline[time:first_hour] *= 2.0
+            
+            # Remaining time - one provider unavailable
+            remaining_duration = 2  # ~2 hours total impact
+            end_time = min(time + remaining_duration, len(hours))
+            if first_hour < end_time:
+                workload_timeline[first_hour:end_time] *= (providers / (providers - 1)) if providers > 1 else 1.5
 
     fig = go.Figure()
 

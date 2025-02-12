@@ -85,19 +85,48 @@ class WorkflowSimulator:
         return interrupt_time, admission_time, critical_time
         
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload,
-                                   critical_events_per_day, adc, shift_hours=12):
-        """Calculate provider efficiency considering all factors and parallel work capacity"""
-        # If there's no work, efficiency should be 100%
-        if workload == 0 and adc == 0 and critical_events_per_day == 0:
-            return 1.0
+                                   critical_events_per_day, admissions, adc, shift_hours=12):
+        """Calculate provider efficiency considering dynamic event distribution"""
+        # Generate random event timings for the shift
+        np.random.seed(None)  # Ensure random distribution
+        shift_minutes = shift_hours * 60
         
-        base_efficiency = 1.0
-        interruption_impact = sum(self.interruption_scales.values()) * 0.1  # Scale based on configured rates
-        workload_impact = 0.15 * (adc / providers) if providers > 0 and adc > 0 else 0  # Scale impact by patient load per provider
+        # Distribute events across shift
+        admission_times = sorted(np.random.choice(shift_minutes, size=admissions, replace=False))
+        critical_times = sorted(np.random.choice(shift_minutes, size=int(critical_events_per_day), replace=False))
         
-        # Adjust base efficiency based on ADC per provider ratio
-        patients_per_provider = adc / providers if providers > 0 else 0
-        base_efficiency = min(1.0, 1.2 - (patients_per_provider * 0.15))  # Decrease efficiency as patients/provider increases
+        # Track provider availability minute by minute
+        available_providers = np.ones(shift_minutes) * providers
+        
+        # Process admissions (takes one provider)
+        for start_time in admission_times:
+            end_time = min(start_time + self.admission_times['complex'], shift_minutes)
+            available_providers[start_time:end_time] -= 1
+            
+        # Process critical events (takes both providers initially)
+        for start_time in critical_times:
+            # Both providers unavailable first hour
+            first_hour_end = min(start_time + 60, shift_minutes)
+            available_providers[start_time:first_hour_end] = 0
+            
+            # One provider returns after first hour
+            second_phase_end = min(start_time + self.critical_event_time, shift_minutes)
+            if first_hour_end < second_phase_end:
+                available_providers[first_hour_end:second_phase_end] = np.maximum(
+                    available_providers[first_hour_end:second_phase_end] - 1, 0
+                )
+        
+        # Calculate average provider availability
+        avg_availability = np.mean(available_providers) / providers
+        
+        # Base efficiency calculation
+        base_efficiency = min(1.0, 1.2 - (adc / providers * 0.15))
+        interruption_impact = interruptions_per_hour * 0.02  # 2% per interruption/hour
+        
+        # Final efficiency considers both base efficiency and provider availability
+        efficiency = base_efficiency * avg_availability * (1 - interruption_impact)
+        
+        return max(0.3, efficiency)  # Minimum efficiency of 30%
         
         # Account for rounding inefficiency (9-11 AM) only if there are patients
         rounding_impact = 0
