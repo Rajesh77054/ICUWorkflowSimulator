@@ -60,7 +60,7 @@ def calculate_workload(adc, admissions, consults, critical_events, providers, si
 
     # Calculate interruption impacts
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                   0.3 * simulator.admission_times['complex'])
+                                  0.3 * simulator.admission_times['complex'])
     critical_time = critical_events * simulator.critical_event_time
 
     # Calculate interruption time
@@ -86,20 +86,22 @@ def calculate_workload(adc, admissions, consults, critical_events, providers, si
 
     return total_workload
 
-def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simulator):
+def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, transfer_calls, simulator):
     # Calculate time impact per hour using current simulator settings
     nursing_time = nursing_q * simulator.interruption_times['nursing_question']
     exam_time = exam_callbacks * simulator.interruption_times['exam_callback']
     peer_time = peer_interrupts * simulator.interruption_times['peer_interrupt']
+    transfer_time = transfer_calls * simulator.interruption_times['transfer_call']
 
-    categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions']
-    values = [nursing_time, exam_time, peer_time]
+    categories = ['Nursing Questions', 'Exam Callbacks', 'Peer Interruptions', 'Transfer Calls']
+    values = [nursing_time, exam_time, peer_time, transfer_time]
 
     # Include time per interruption for more detailed analysis
     hover_text = [
         f'Time per interruption: {simulator.interruption_times["nursing_question"]} min',
         f'Time per interruption: {simulator.interruption_times["exam_callback"]} min',
-        f'Time per interruption: {simulator.interruption_times["peer_interrupt"]} min'
+        f'Time per interruption: {simulator.interruption_times["peer_interrupt"]} min',
+        f'Time per interruption: {simulator.interruption_times["transfer_call"]} min'
     ]
 
     # Create a more detailed bar chart
@@ -111,7 +113,7 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, simula
         y=values,
         text=[f'{v:.1f} min/hr' for v in values],
         textposition='auto',
-        marker_color=['#66c2a5', '#fc8d62', '#8da0cb'],
+        marker_color=['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3'],
         hovertext=hover_text,
         hoverinfo='text'
     ))
