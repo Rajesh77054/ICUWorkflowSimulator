@@ -108,10 +108,11 @@ def create_time_allocation_pie(time_lost, consult_time, providers=1, available_h
         role: Provider role ('physician' or 'app')
     """
     available_minutes = available_hours * 60
+    consult_time = float(consult_time) if consult_time is not None else 0.0
 
     if role == 'physician':
         # Physician time allocation includes consults
-        time_lost_per_provider = time_lost / providers
+        time_lost_per_provider = time_lost / providers if providers > 0 else 0
         consult_time_per_provider = consult_time  # All consult time affects physician
         remaining_minutes = available_minutes - time_lost_per_provider - consult_time_per_provider
 
@@ -124,7 +125,7 @@ def create_time_allocation_pie(time_lost, consult_time, providers=1, available_h
 
     else:  # APP
         # APP time allocation excludes consults
-        time_lost_per_provider = time_lost / providers
+        time_lost_per_provider = time_lost / providers if providers > 0 else 0
         remaining_minutes = available_minutes - time_lost_per_provider
 
         # Ensure we don't show negative remaining time
@@ -134,7 +135,12 @@ def create_time_allocation_pie(time_lost, consult_time, providers=1, available_h
         values = [time_lost_per_provider, remaining_minutes]
         colors = ['#ff6b6b', '#4ecdc4']
 
-    percentages = [v/available_minutes * 100 for v in values]
+    # Handle division by zero
+    total_minutes = sum(values)
+    if total_minutes == 0:
+        percentages = [0] * len(values)
+    else:
+        percentages = [v/available_minutes * 100 for v in values]
 
     # Create custom hover text
     hover_text = []
