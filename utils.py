@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from simulator import WorkflowSimulator
 
-def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, providers, simulator):
+def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, transfer_calls, providers, simulator):
     """Calculate interruption metrics using actual input values
     Input frequencies are per hour per provider
     Returns:
@@ -12,13 +12,14 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, provider
     - time_lost: total organizational minutes lost to interruptions per shift
     """
     # Calculate total interruptions per provider per shift (12 hours)
-    per_provider = (nursing_q + exam_callbacks + peer_interrupts) * 12
+    per_provider = (nursing_q + exam_callbacks + peer_interrupts + transfer_calls) * 12
 
     # Calculate time lost per hour using provided simulator settings
     hourly_time = (
         nursing_q * simulator.interruption_times['nursing_question'] +
         exam_callbacks * simulator.interruption_times['exam_callback'] + 
-        peer_interrupts * simulator.interruption_times['peer_interrupt']
+        peer_interrupts * simulator.interruption_times['peer_interrupt'] +
+        transfer_calls * simulator.interruption_times['transfer_call']
     )
 
     # Calculate total time lost for all providers over full shift
@@ -58,7 +59,7 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
 
     # Calculate interruption impacts
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                0.3 * simulator.admission_times['complex'])
+                                   0.3 * simulator.admission_times['complex'])
     transfer_time = transfers * simulator.admission_times['transfer']  # Now treated as interruption only
     critical_time = critical_events * simulator.critical_event_time
 
