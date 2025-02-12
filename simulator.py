@@ -44,23 +44,28 @@ class WorkflowSimulator:
             self.critical_event_time = new_settings['critical_event_time']
 
     def calculate_individual_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls):
-        """Calculate interruption time for a single provider during a 12-hour shift
-        Input frequencies are per hour per provider
-        Returns: Total minutes lost to interruptions for one provider
-        """
+        """Calculate interruption time for a single provider during a 12-hour shift"""
         hourly_time = (
             nursing_q * self.interruption_times['nursing_question'] +
             exam_callbacks * self.interruption_times['exam_callback'] +
             peer_interrupts * self.interruption_times['peer_interrupt'] +
             transfer_calls * self.interruption_times['transfer_call']
         )
-        return hourly_time * 12  # Convert to full shift duration
+        return hourly_time * 12
+
+    def calculate_role_specific_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls, role='physician'):
+        """Calculate interruption time specific to provider role"""
+        # Physicians handle all types of interruptions
+        # APPs handle all except transfer calls (handled by physicians)
+        if role == 'app':
+            transfer_calls = 0  # APPs don't handle transfer calls
+
+        return self.calculate_individual_interruption_time(
+            nursing_q, exam_callbacks, peer_interrupts, transfer_calls
+        )
 
     def calculate_total_interruption_time(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls, providers):
-        """Calculate total organizational interruption time during a 12-hour shift
-        Input frequencies are per hour per provider
-        Returns: Total minutes lost to interruptions across all providers
-        """
+        """Calculate total organizational interruption time during a 12-hour shift"""
         individual_time = self.calculate_individual_interruption_time(
             nursing_q, exam_callbacks, peer_interrupts, transfer_calls
         )
@@ -69,27 +74,23 @@ class WorkflowSimulator:
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
                             admissions, consults, critical_events_per_day, providers):
         """Calculate time impacts for different activities during a shift"""
-        # Calculate total organizational interruption time
         interrupt_time = self.calculate_total_interruption_time(
             nursing_q, exam_callbacks, peer_interrupts, transfer_calls, providers
         )
 
-        # Calculate admission and consult time
         admission_time = (
             admissions * (0.7 * self.admission_times['simple'] + 0.3 * self.admission_times['complex']) +
             consults * self.admission_times['consult']
         )
 
-        # Calculate critical event time
         critical_time = critical_events_per_day * self.critical_event_time
 
         return interrupt_time, admission_time, critical_time
 
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload,
-                                   critical_events_per_day, admissions, adc):
-        """Calculate provider efficiency considering dynamic event distribution"""
-        # Generate random event timings for the shift
-        np.random.seed(None)  # Ensure random distribution
+                                   critical_events_per_day, admissions, adc, role='physician'):
+        """Calculate provider efficiency considering role-specific duties"""
+        np.random.seed(None)
         shift_minutes = 12 * 60
 
         # Distribute events across shift
@@ -97,65 +98,88 @@ class WorkflowSimulator:
         critical_times = sorted(np.random.choice(shift_minutes, size=int(critical_events_per_day), replace=False))
 
         # Track provider availability minute by minute
-        available_providers = np.ones(shift_minutes) * providers
+        available_providers = np.ones(shift_minutes)
 
-        # Process admissions (takes one provider)
+        # Process role-specific events
+        if role == 'physician':
+            # Process consults (physician only, 8am-5pm)
+            consult_window_start = 8 * 60
+            consult_window_end = 17 * 60
+            consult_impact = np.zeros(shift_minutes)
+            consult_impact[consult_window_start:consult_window_end] = 0.8  # 80% impact during consult window
+            available_providers *= (1 - consult_impact)
+
+        # Process shared responsibilities
         for start_time in admission_times:
             end_time = min(start_time + self.admission_times['complex'], shift_minutes)
-            available_providers[start_time:end_time] -= 1
+            available_providers[start_time:end_time] *= 0.5  # 50% availability during admissions
 
-        # Process critical events (takes both providers initially)
+        # Process critical events (both providers initially, then one)
         for start_time in critical_times:
-            # Both providers unavailable first hour
             first_hour_end = min(start_time + 60, shift_minutes)
-            available_providers[start_time:first_hour_end] = 0
+            available_providers[start_time:first_hour_end] = 0  # Both unavailable
 
-            # One provider returns after first hour
             second_phase_end = min(start_time + self.critical_event_time, shift_minutes)
             if first_hour_end < second_phase_end:
-                available_providers[first_hour_end:second_phase_end] = np.maximum(
-                    available_providers[first_hour_end:second_phase_end] - 1, 0
-                )
+                available_providers[first_hour_end:second_phase_end] *= 0.5  # One provider returns
 
-        # Calculate average provider availability
-        avg_availability = np.mean(available_providers) / providers
+        # Calculate average availability
+        avg_availability = np.mean(available_providers)
 
-        # Base efficiency calculation
+        # Base efficiency calculation with role-specific adjustments
         base_efficiency = min(1.0, 1.2 - (adc / providers * 0.15))
-        interruption_impact = interruptions_per_hour * 0.02  # 2% per interruption/hour
 
-        # Account for consult impact on physician availability (8am-5pm window)
-        consult_window_start = 8 * 60  # 8 AM in minutes
-        consult_window_end = 17 * 60   # 5 PM in minutes
-        consult_window = available_providers[consult_window_start:consult_window_end]
-        physician_availability = np.mean(consult_window) / providers
+        # Role-specific interruption impact
+        if role == 'physician':
+            interruption_impact = interruptions_per_hour * 0.025  # 2.5% per interruption/hour for physicians
+        else:  # APP
+            interruption_impact = interruptions_per_hour * 0.02   # 2% per interruption/hour for APPs
 
-        # Final efficiency considers both base efficiency and provider availability
-        efficiency = base_efficiency * avg_availability * physician_availability * (1 - interruption_impact)
+        # Final efficiency calculation
+        efficiency = base_efficiency * avg_availability * (1 - interruption_impact)
 
         return max(0.3, efficiency)  # Minimum efficiency of 30%
 
-    def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
-        """Calculate simple burnout risk metric"""
-        # If there's no work, burnout risk should be 0
+    def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day, role='physician'):
+        """Calculate role-specific burnout risk metric"""
         if workload_per_provider == 0 and interruptions_per_hour == 0 and critical_events_per_day == 0:
             return 0.0
 
-        # Calculate risk components consistently with detailed calculation
-        interruption_factor = interruptions_per_hour * 0.03  # 3% per interruption/hour
-        workload_factor = workload_per_provider * 0.1  # 10% per unit of workload
-        critical_factor = critical_events_per_day * 0.15  # 15% per critical event per day
+        # Calculate risk components with role-specific weights
+        interruption_factor = interruptions_per_hour * (0.035 if role == 'physician' else 0.03)
+        workload_factor = workload_per_provider * 0.1
+        critical_factor = critical_events_per_day * 0.15
 
-        # Only apply rounding impact if there is actual workload
+        # Role-specific rounding impact
         rounding_impact = 0
         if workload_per_provider > 0:
-            rounding_overhead = 0.8  # 80% overhead during rounds
-            data_collection_inefficiency = 0.3  # 30% inefficiency
-            rounding_impact = (rounding_overhead + data_collection_inefficiency) * 0.25  # Scale factor
+            rounding_overhead = 0.8
+            data_collection_inefficiency = 0.3
+            rounding_impact = (rounding_overhead + data_collection_inefficiency) * (0.3 if role == 'physician' else 0.2)
 
-        # Use same weighting as detailed calculation
-        base_risk = min(1.0, (interruption_factor * 0.2) + (workload_factor * 0.25) +
-                       (critical_factor * 0.2) + (rounding_impact * 0.35))
+        # Use role-specific weighting
+        if role == 'physician':
+            weights = {
+                'interruption': 0.25,
+                'workload': 0.3,
+                'critical': 0.2,
+                'rounding': 0.25
+            }
+        else:  # APP
+            weights = {
+                'interruption': 0.2,
+                'workload': 0.35,
+                'critical': 0.25,
+                'rounding': 0.2
+            }
+
+        base_risk = min(1.0, 
+            (interruption_factor * weights['interruption']) +
+            (workload_factor * weights['workload']) +
+            (critical_factor * weights['critical']) +
+            (rounding_impact * weights['rounding'])
+        )
+
         return base_risk
 
     def calculate_detailed_burnout_risk(self, workload_per_provider, interruptions_per_hour,

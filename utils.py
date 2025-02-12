@@ -28,44 +28,33 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, transfer
     return per_provider, time_lost
 
 def calculate_workload(adc, consults, providers, simulator):
-    """Calculate workload relative to total available shift minutes
-
-    Workload is determined by components:
-    1. ICU Census (ADC) - Primary workload driver
-    2. Floor Consults - Physician-only workload component
-       - Only physician responds (APP continues ICU work)
-       - Average duration: 45 minutes
-       - Distributed between 8am-5pm
-
-    Args:
-        adc: Average Daily Census (0-16 patients)
-        consults: Number of floor consults per shift
-        providers: Number of providers (typically 2: 1 physician + 1 APP)
-        simulator: WorkflowSimulator instance for time calculations
-    """
+    """Calculate workload relative to total available shift minutes"""
     # Calculate base ICU workload (scales 0-1 for 0-16 patients)
     icu_workload = adc / 16.0
 
-    # Calculate floor consults workload
-    # Only affects physician (1 provider), so we multiply by providers to normalize
+    # Calculate floor consults workload (physician only)
     consult_time = consults * simulator.admission_times['consult']
-    consult_workload = (consult_time / (9 * 60)) * providers  # Normalize to 9-hour consult window (8am-5pm)
 
     # If there's no base workload (no ADC and no consults), return 0
     if adc == 0 and consults == 0:
         return 0.0
 
-    # Calculate total available minutes considering provider roles
-    available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
+    # Calculate total available minutes
+    available_minutes = providers * 12 * 60
 
-    # Adjust for consult impact on physician availability
+    # Calculate physician-specific impact
     physician_minutes_lost = consult_time
-    provider_impact = physician_minutes_lost / available_minutes
+    physician_impact = physician_minutes_lost / available_minutes
 
-    # Final workload considers base ICU load plus normalized consult impact
-    total_workload = icu_workload + (provider_impact * (providers / 1))  # Scale impact to physician only
+    # Final workload considers base ICU load plus physician-specific impact
+    physician_workload = icu_workload + physician_impact
+    app_workload = icu_workload  # APP workload excludes consults
 
-    return total_workload
+    return {
+        'physician': physician_workload,
+        'app': app_workload,
+        'combined': (physician_workload + app_workload) / 2
+    }
 
 def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, transfer_calls, simulator):
     # Calculate time impact per hour using current simulator settings
@@ -109,34 +98,48 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, transf
     return fig
 
 
-def create_time_allocation_pie(time_lost, consult_time, providers=1, available_hours=12):
+def create_time_allocation_pie(time_lost, consult_time, providers=1, available_hours=12, role='physician'):
     """Create pie chart showing time allocation during shift
     Args:
         time_lost: Total organizational time lost to interruptions (minutes)
         consult_time: Time spent on floor consults (minutes)
         providers: Number of providers
         available_hours: Shift duration in hours
+        role: Provider role ('physician' or 'app')
     """
-    # Convert time_lost to per-provider minutes
-    time_lost_per_provider = time_lost / providers
-    consult_time_per_provider = consult_time / providers  # Only affects physician
-
     available_minutes = available_hours * 60
-    remaining_minutes = available_minutes - time_lost_per_provider - consult_time_per_provider
 
-    # Ensure we don't show negative remaining time
-    remaining_minutes = max(0, remaining_minutes)
+    if role == 'physician':
+        # Physician time allocation includes consults
+        time_lost_per_provider = time_lost / providers
+        consult_time_per_provider = consult_time  # All consult time affects physician
+        remaining_minutes = available_minutes - time_lost_per_provider - consult_time_per_provider
 
-    labels = ['Interrupted Time', 'Consult Time', 'Available Clinical Time']
-    values = [time_lost_per_provider, consult_time_per_provider, remaining_minutes]
+        # Ensure we don't show negative remaining time
+        remaining_minutes = max(0, remaining_minutes)
+
+        labels = ['Interrupted Time', 'Consult Time', 'Available Clinical Time']
+        values = [time_lost_per_provider, consult_time_per_provider, remaining_minutes]
+        colors = ['#ff6b6b', '#ffd93d', '#4ecdc4']
+
+    else:  # APP
+        # APP time allocation excludes consults
+        time_lost_per_provider = time_lost / providers
+        remaining_minutes = available_minutes - time_lost_per_provider
+
+        # Ensure we don't show negative remaining time
+        remaining_minutes = max(0, remaining_minutes)
+
+        labels = ['Interrupted Time', 'Available Clinical Time']
+        values = [time_lost_per_provider, remaining_minutes]
+        colors = ['#ff6b6b', '#4ecdc4']
+
     percentages = [v/available_minutes * 100 for v in values]
 
-    # Create custom hover text with both minutes and percentages
-    hover_text = [
-        f'Interrupted: {time_lost_per_provider:.0f} min ({percentages[0]:.1f}%)',
-        f'Consults: {consult_time_per_provider:.0f} min ({percentages[1]:.1f}%)',
-        f'Available: {remaining_minutes:.0f} min ({percentages[2]:.1f}%)'
-    ]
+    # Create custom hover text
+    hover_text = []
+    for i, (label, value, pct) in enumerate(zip(labels, values, percentages)):
+        hover_text.append(f'{label}: {value:.0f} min ({pct:.1f}%)')
 
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -144,11 +147,12 @@ def create_time_allocation_pie(time_lost, consult_time, providers=1, available_h
         textinfo='percent+value',
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_text,
-        marker=dict(colors=['#ff6b6b', '#ffd93d', '#4ecdc4'])
+        marker=dict(colors=colors)
     )])
 
+    role_title = "Physician" if role == "physician" else "APP"
     fig.update_layout(
-        title='Provider Time Allocation (12-hour shift)',
+        title=f'{role_title} Time Allocation (12-hour shift)',
         height=500,
         showlegend=True,
         margin=dict(t=100, b=60, l=20, r=20),

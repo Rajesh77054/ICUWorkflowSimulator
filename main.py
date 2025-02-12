@@ -288,22 +288,86 @@ def main():
             )
 
             # Time Distribution
+            st.markdown("### Provider Time Allocation")
+            st.caption("Showing separate allocations for Physician and APP roles")
+
             col1, col2 = st.columns(2)
             with col1:
-                st.plotly_chart(
-                    create_interruption_chart(
-                        nursing_q, exam_callbacks, peer_interrupts, transfer_calls, st.session_state.simulator
-                    ),
-                    use_container_width=True
-                )
-            with col2:
+                # Physician time allocation
                 st.plotly_chart(
                     create_time_allocation_pie(
                         time_lost, 
                         total_consult_time,
-                        providers
+                        providers,
+                        role='physician'
                     ),
                     use_container_width=True
+                )
+            with col2:
+                # APP time allocation
+                st.plotly_chart(
+                    create_time_allocation_pie(
+                        time_lost, 
+                        total_consult_time,
+                        providers,
+                        role='app'
+                    ),
+                    use_container_width=True
+                )
+
+            # Calculate role-specific metrics
+            physician_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
+                providers, workload['physician'], critical_events_per_day,
+                admissions, adc, role='physician'
+            )
+
+            app_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                nursing_q + exam_callbacks + peer_interrupts,  # APPs don't handle transfer calls
+                providers, workload['app'], critical_events_per_day,
+                admissions, adc, role='app'
+            )
+
+            # Display role-specific metrics
+            st.markdown("### Provider-Specific Metrics")
+            metrics_cols = st.columns(2)
+
+            with metrics_cols[0]:
+                st.markdown("#### Physician Metrics")
+                st.metric(
+                    "Efficiency",
+                    f"{physician_efficiency:.0%}",
+                    help="Physician-specific workflow efficiency"
+                )
+                physician_burnout = st.session_state.simulator.calculate_burnout_risk(
+                    workload['physician'],
+                    interrupts_per_provider,
+                    critical_events_per_day,
+                    role='physician'
+                )
+                st.metric(
+                    "Burnout Risk",
+                    f"{physician_burnout:.0%}",
+                    help="Physician-specific burnout risk"
+                )
+
+            with metrics_cols[1]:
+                st.markdown("#### APP Metrics")
+                st.metric(
+                    "Efficiency",
+                    f"{app_efficiency:.0%}",
+                    help="APP-specific workflow efficiency"
+                )
+                app_burnout = st.session_state.simulator.calculate_burnout_risk(
+                    workload['app'],
+                    interrupts_per_provider,
+                    critical_events_per_day,
+                    role='app'
+                )
+                st.metric(
+                    "Burnout Risk",
+                    f"{app_burnout:.0%}",
+                    help="APP-specific burnout risk"
                 )
 
             # Recommendations for Providers
