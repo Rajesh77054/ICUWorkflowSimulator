@@ -69,7 +69,7 @@ class WorkflowSimulator:
         individual_time = self.calculate_individual_interruption_time(
             nursing_q, exam_callbacks, peer_interrupts, transfer_calls
         )
-        return individual_time * providers  # Total organizational impact
+        return individual_time * providers
 
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
                             admissions, consults, critical_events_per_day, providers):
@@ -90,6 +90,10 @@ class WorkflowSimulator:
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload,
                                    critical_events_per_day, admissions, adc, role='physician'):
         """Calculate provider efficiency considering role-specific duties"""
+        # Ensure workload is a float
+        if isinstance(workload, dict):
+            workload = workload.get(role, workload.get('combined', 0.0))
+
         np.random.seed(None)
         shift_minutes = 12 * 60
 
@@ -140,19 +144,23 @@ class WorkflowSimulator:
 
         return max(0.3, efficiency)  # Minimum efficiency of 30%
 
-    def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day, role='physician'):
+    def calculate_burnout_risk(self, workload, interruptions_per_hour, critical_events_per_day, role='physician'):
         """Calculate role-specific burnout risk metric"""
-        if workload_per_provider == 0 and interruptions_per_hour == 0 and critical_events_per_day == 0:
+        # Ensure workload is a float
+        if isinstance(workload, dict):
+            workload = workload.get(role, workload.get('combined', 0.0))
+
+        if workload == 0 and interruptions_per_hour == 0 and critical_events_per_day == 0:
             return 0.0
 
         # Calculate risk components with role-specific weights
         interruption_factor = interruptions_per_hour * (0.035 if role == 'physician' else 0.03)
-        workload_factor = workload_per_provider * 0.1
+        workload_factor = workload * 0.1
         critical_factor = critical_events_per_day * 0.15
 
         # Role-specific rounding impact
         rounding_impact = 0
-        if workload_per_provider > 0:
+        if workload > 0:
             rounding_overhead = 0.8
             data_collection_inefficiency = 0.3
             rounding_impact = (rounding_overhead + data_collection_inefficiency) * (0.3 if role == 'physician' else 0.2)
