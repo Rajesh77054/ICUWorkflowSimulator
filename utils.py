@@ -109,30 +109,33 @@ def create_interruption_chart(nursing_q, exam_callbacks, peer_interrupts, transf
     return fig
 
 
-def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
+def create_time_allocation_pie(time_lost, consult_time, providers=1, available_hours=12):
     """Create pie chart showing time allocation during shift
     Args:
         time_lost: Total organizational time lost to interruptions (minutes)
+        consult_time: Time spent on floor consults (minutes)
         providers: Number of providers
         available_hours: Shift duration in hours
     """
     # Convert time_lost to per-provider minutes
     time_lost_per_provider = time_lost / providers
+    consult_time_per_provider = consult_time / providers  # Only affects physician
 
     available_minutes = available_hours * 60
-    remaining_minutes = available_minutes - time_lost_per_provider
+    remaining_minutes = available_minutes - time_lost_per_provider - consult_time_per_provider
 
     # Ensure we don't show negative remaining time
     remaining_minutes = max(0, remaining_minutes)
 
-    labels = ['Interrupted Time', 'Available Clinical Time']
-    values = [time_lost_per_provider, remaining_minutes]
+    labels = ['Interrupted Time', 'Consult Time', 'Available Clinical Time']
+    values = [time_lost_per_provider, consult_time_per_provider, remaining_minutes]
     percentages = [v/available_minutes * 100 for v in values]
 
     # Create custom hover text with both minutes and percentages
     hover_text = [
         f'Interrupted: {time_lost_per_provider:.0f} min ({percentages[0]:.1f}%)',
-        f'Available: {remaining_minutes:.0f} min ({percentages[1]:.1f}%)'
+        f'Consults: {consult_time_per_provider:.0f} min ({percentages[1]:.1f}%)',
+        f'Available: {remaining_minutes:.0f} min ({percentages[2]:.1f}%)'
     ]
 
     fig = go.Figure(data=[go.Pie(
@@ -141,14 +144,14 @@ def create_time_allocation_pie(time_lost, providers=1, available_hours=12):
         textinfo='percent+value',
         hovertemplate="%{customdata}<extra></extra>",
         customdata=hover_text,
-        marker=dict(colors=['#ff6b6b', '#4ecdc4'])
+        marker=dict(colors=['#ff6b6b', '#ffd93d', '#4ecdc4'])
     )])
 
     fig.update_layout(
         title='Provider Time Allocation (12-hour shift)',
         height=500,
         showlegend=True,
-        margin=dict(t=100, b=60, l=20, r=20),  # Increased top margin to match reference chart
+        margin=dict(t=100, b=60, l=20, r=20),
         annotations=[dict(
             text=f'Total Shift Duration: {available_minutes} minutes (12 hours)',
             showarrow=False,

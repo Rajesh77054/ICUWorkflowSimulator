@@ -298,7 +298,11 @@ def main():
                 )
             with col2:
                 st.plotly_chart(
-                    create_time_allocation_pie(time_lost, providers),
+                    create_time_allocation_pie(
+                        time_lost, 
+                        total_consult_time,
+                        providers
+                    ),
                     use_container_width=True
                 )
 
