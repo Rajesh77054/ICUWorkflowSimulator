@@ -98,6 +98,11 @@ class WorkflowSimulator:
         if workload == 0 and adc == 0 and admissions == 0 and critical_events_per_day == 0:
             return 1.0  # 100% efficient when there's no work
 
+        # Return moderate efficiency if there are only interruptions
+        if adc == 0 and admissions == 0 and critical_events_per_day == 0:
+            interruption_impact = interruptions_per_hour * (0.025 if role == 'physician' else 0.02)
+            return max(0.3, 1.0 - interruption_impact)
+
         np.random.seed(None)
         shift_minutes = 12 * 60
 
@@ -114,7 +119,7 @@ class WorkflowSimulator:
             consult_window_start = 8 * 60
             consult_window_end = 17 * 60
             consult_impact = np.zeros(shift_minutes)
-            consult_impact[consult_window_start:consult_window_end] = 0.8  # 80% impact during consult window
+            consult_impact[consult_window_start:consult_window_end] = workload * 0.8  # Scale impact by workload
             available_providers *= (1 - consult_impact)
 
         # Process shared responsibilities
@@ -250,6 +255,10 @@ class WorkflowSimulator:
         # If there's no work, cognitive load should be 0
         if workload == 0 and critical_events_per_day == 0 and admissions == 0 and interruptions == 0:
             return 0
+
+        # If there are only interruptions, return a minimal base load
+        if workload == 0 and critical_events_per_day == 0 and admissions == 0:
+            return min(20, interruptions * 2)  # Scale with interruptions but cap at 20
 
         base_load = 30 if workload > 0 else 0  # baseline cognitive load only applies if there's work
 
