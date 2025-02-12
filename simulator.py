@@ -94,6 +94,10 @@ class WorkflowSimulator:
         if isinstance(workload, dict):
             workload = workload.get(role, workload.get('combined', 0.0))
 
+        # Return high efficiency if there's no work to do
+        if workload == 0 and adc == 0 and admissions == 0 and critical_events_per_day == 0:
+            return 1.0  # 100% efficient when there's no work
+
         np.random.seed(None)
         shift_minutes = 12 * 60
 
@@ -131,7 +135,7 @@ class WorkflowSimulator:
         avg_availability = np.mean(available_providers)
 
         # Base efficiency calculation with role-specific adjustments
-        base_efficiency = min(1.0, 1.2 - (adc / providers * 0.15))
+        base_efficiency = min(1.0, 1.2 - (adc / providers * 0.15)) if adc > 0 else 1.0
 
         # Role-specific interruption impact
         if role == 'physician':
@@ -150,6 +154,7 @@ class WorkflowSimulator:
         if isinstance(workload, dict):
             workload = workload.get(role, workload.get('combined', 0.0))
 
+        # Return zero burnout risk if there's no work
         if workload == 0 and interruptions_per_hour == 0 and critical_events_per_day == 0:
             return 0.0
 
