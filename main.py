@@ -230,11 +230,11 @@ def main():
 
         efficiency = st.session_state.simulator.simulate_provider_efficiency(
             nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
-            providers, workload, critical_events_per_day, admissions, adc
+            providers, workload['combined'], critical_events_per_day, admissions, adc
         )
 
         burnout_risk = st.session_state.simulator.calculate_burnout_risk(
-            workload,
+            workload['combined'],
             interrupts_per_provider,
             critical_events_per_day
         )
@@ -243,7 +243,7 @@ def main():
             interrupts_per_provider,
             critical_events_per_day,
             admissions,
-            workload
+            workload['combined']
         )
 
         if user_type == "Provider":
@@ -282,7 +282,7 @@ def main():
             # Visual Timeline
             st.plotly_chart(
                 create_workload_timeline(
-                    workload, providers, critical_events_per_day, admissions, st.session_state.simulator
+                    workload['combined'], providers, critical_events_per_day, admissions, st.session_state.simulator
                 ),
                 use_container_width=True
             )
@@ -398,7 +398,7 @@ def main():
             with col2:
                 st.plotly_chart(
                     create_burnout_radar_chart({
-                        "Workload": workload,
+                        "Workload": workload['combined'],
                         "Interruptions": interrupts_per_provider/50,  # Normalized
                         "Critical Events": critical_events_per_day/5,  # Normalized
                         "Cognitive Load": cognitive_load/100,
@@ -472,7 +472,7 @@ def main():
                 if st.button("Generate Report"):
                     report_data = generate_report_data(
                         interrupts_per_provider, time_lost, efficiency,
-                        cognitive_load, workload, burnout_risk,
+                        cognitive_load, workload['combined'], burnout_risk,
                         interrupt_time, admission_time, critical_time, providers
                     )
 
