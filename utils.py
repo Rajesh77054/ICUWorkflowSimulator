@@ -27,7 +27,7 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, transfer
 
     return per_provider, time_lost
 
-def calculate_workload(adc, admissions, consults, transfers, critical_events, providers, simulator):
+def calculate_workload(adc, admissions, consults, critical_events, providers, simulator):
     """Calculate workload relative to total available shift minutes
 
     Workload is determined by two primary components:
@@ -41,6 +41,7 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
         adc: Average Daily Census (0-16 patients)
         consults: Number of floor consults
         providers: Number of providers working in parallel
+        simulator: WorkflowSimulator instance for time calculations
         Other args: Interruption factors
     """
     # Calculate base ICU workload (scales 0-1 for 0-16 patients)
@@ -60,7 +61,6 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
     # Calculate interruption impacts
     admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
                                    0.3 * simulator.admission_times['complex'])
-    transfer_time = transfers * simulator.admission_times['transfer']  # Now treated as interruption only
     critical_time = critical_events * simulator.critical_event_time
 
     # Calculate interruption time
@@ -68,11 +68,12 @@ def calculate_workload(adc, admissions, consults, transfers, critical_events, pr
         nursing_q=adc * simulator.interruption_scales['nursing_question'],
         exam_callbacks=adc * simulator.interruption_scales['exam_callback'],
         peer_interrupts=adc * simulator.interruption_scales['peer_interrupt'],
+        transfer_calls=adc * simulator.interruption_scales['transfer_call'],
         providers=providers
     )
 
     # Calculate total required minutes for interrupting tasks
-    interruption_minutes = admission_time + transfer_time + critical_time + interruption_time
+    interruption_minutes = admission_time + critical_time + interruption_time
 
     # Calculate total available minutes across all providers working in parallel
     available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
