@@ -218,16 +218,14 @@ def main():
         )
 
         workload = calculate_workload(
-            adc, admissions, consults, critical_events/7, providers, 
-            st.session_state.simulator, consult_duration 
+            adc, consults, providers, st.session_state.simulator
         )
 
         critical_events_per_day = critical_events / 7.0
 
         interrupt_time, admission_time, critical_time = st.session_state.simulator.calculate_time_impact(
             nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
-            admissions, consults, critical_events_per_day,
-            providers
+            admissions, consults, critical_events_per_day, providers
         )
 
         efficiency = st.session_state.simulator.simulate_provider_efficiency(
