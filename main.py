@@ -197,7 +197,8 @@ def main():
         )
 
         workload = calculate_workload(
-            adc, admissions, consults, critical_events/7, providers, st.session_state.simulator
+            adc, admissions, consults, critical_events/7, providers, 
+            st.session_state.simulator  
         )
 
         critical_events_per_day = critical_events / 7.0

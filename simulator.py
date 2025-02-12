@@ -67,7 +67,7 @@ class WorkflowSimulator:
         return individual_time * providers  # Total organizational impact
 
     def calculate_time_impact(self, nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
-                            admissions, consults, transfers, critical_events_per_day, providers):
+                            admissions, consults, critical_events_per_day, providers):
         """Calculate time impacts for different activities during a shift"""
         # Calculate total organizational interruption time
         interrupt_time = self.calculate_total_interruption_time(
