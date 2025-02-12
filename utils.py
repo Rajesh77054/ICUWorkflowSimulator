@@ -180,6 +180,7 @@ def create_workload_timeline(workload, providers, critical_events_per_day, admis
     - Base workload accounts for parallel provider work capacity
     """
     hours = list(range(8, 21))  # 8 AM to 8 PM
+    shift_minutes = len(hours) * 60
 
     # Base workload variation throughout the day (±20% sinusoidal variation)
     base_variation = 0.2 * np.sin((np.array(hours) - 8) * np.pi / 12)
@@ -213,12 +214,12 @@ def create_workload_timeline(workload, providers, critical_events_per_day, admis
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
     # Generate random event distributions
-    admission_times = sorted(np.random.choice(len(hours) * 60, size=admissions, replace=False)) // 60
-    critical_event_times = sorted(np.random.choice(len(hours) * 60, size=int(critical_events_per_day), replace=False)) // 60
-    
+    admission_times = sorted(np.random.choice(shift_minutes, size=int(admissions), replace=False)) // 60
+    critical_event_times = sorted(np.random.choice(shift_minutes, size=int(critical_events_per_day), replace=False)) // 60
+
     # Initialize workload timeline with base variation
     workload_timeline = np.ones(len(hours)) * workload * (1 + base_variation)
-    
+
     # Add admission impacts
     for time in admission_times:
         if time < len(hours):
@@ -226,14 +227,14 @@ def create_workload_timeline(workload, providers, critical_events_per_day, admis
             duration = 2  # Impact lasts ~2 hours
             end_time = min(time + duration, len(hours))
             workload_timeline[time:end_time] *= (providers / (providers - 1)) if providers > 1 else 2.0
-            
+
     # Add critical event impacts
     for time in critical_event_times:
         if time < len(hours):
             # First hour - both providers unavailable
             first_hour = min(time + 1, len(hours))
             workload_timeline[time:first_hour] *= 2.0
-            
+
             # Remaining time - one provider unavailable
             remaining_duration = 2  # ~2 hours total impact
             end_time = min(time + remaining_duration, len(hours))
