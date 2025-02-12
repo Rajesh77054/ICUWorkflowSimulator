@@ -214,8 +214,8 @@ def create_workload_timeline(workload, providers, critical_events_per_day, admis
     scaled_critical_impact = critical_impact * (simulator.critical_event_time / 105)
 
     # Generate random event distributions
-    admission_times = sorted(np.random.choice(shift_minutes, size=int(admissions), replace=False)) // 60
-    critical_event_times = sorted(np.random.choice(shift_minutes, size=int(critical_events_per_day), replace=False)) // 60
+    admission_times = np.array(sorted(np.random.choice(shift_minutes, size=int(admissions), replace=False))) // 60
+    critical_event_times = np.array(sorted(np.random.choice(shift_minutes, size=int(critical_events_per_day), replace=False))) // 60
 
     # Initialize workload timeline with base variation
     workload_timeline = np.ones(len(hours)) * workload * (1 + base_variation)
