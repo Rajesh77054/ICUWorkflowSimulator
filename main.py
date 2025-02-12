@@ -122,6 +122,22 @@ def main():
             with pi_col2:
                 peer_time = st.slider("Duration (minutes)", 1, 20, 8, key="peer_duration")
 
+            # Transfer Calls Container (New)
+            st.markdown("#### Transfer Calls")
+            tc_col1, tc_col2 = st.columns(2)
+            with tc_col1:
+                transfer_scale = st.number_input(
+                    "Rate (per patient per hour)", 
+                    0.0, 2.0,
+                    value=st.session_state.simulator.interruption_scales.get('transfer_call', 0.1),
+                    step=0.01, 
+                    format="%.2f"
+                )
+                transfer_calls = adc * transfer_scale
+                st.metric("Current Rate", f"{transfer_calls:.1f}/hour")
+            with tc_col2:
+                transfer_time = st.slider("Duration (minutes)", 1, 20, 8, key="transfer_duration")
+
         # Critical Events Configuration (Bottom Section)
         st.markdown("### Critical Events")
         ce_col1, ce_col2, ce_col3 = st.columns(3)
@@ -139,10 +155,10 @@ def main():
             )
 
         with ce_col2:
-            transfers = st.number_input(
-                "Transfer Calls (per shift)", 
-                0, 20, 2,
-                help="Expected transfer requests"
+            critical_events = st.number_input(
+                "Critical Events (per week)", 
+                0, 50, 5,
+                help="Expected critical events requiring immediate attention"
             )
             complex_admission_time = st.number_input(
                 "Complex Admission Duration", 
@@ -151,11 +167,6 @@ def main():
             )
 
         with ce_col3:
-            critical_events = st.number_input(
-                "Critical Events (per week)", 
-                0, 50, 5,
-                help="Expected critical events requiring immediate attention"
-            )
             critical_event_time = st.number_input(
                 "Critical Event Duration", 
                 60, 180, 105,
@@ -168,7 +179,8 @@ def main():
             'interruption_times': {
                 'nursing_question': nursing_time,
                 'exam_callback': callback_time,
-                'peer_interrupt': peer_time
+                'peer_interrupt': peer_time,
+                'transfer_call': transfer_time
             },
             'admission_times': {
                 'simple': simple_admission_time,
@@ -180,25 +192,24 @@ def main():
 
         # Calculate metrics
         interrupts_per_provider, time_lost = calculate_interruptions(
-            nursing_q, exam_callbacks, peer_interrupts,
+            nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
             providers, st.session_state.simulator
         )
 
         workload = calculate_workload(
-            adc, admissions, consults, transfers,
-            critical_events/7, providers, st.session_state.simulator
+            adc, admissions, consults, critical_events/7, providers, st.session_state.simulator
         )
 
         critical_events_per_day = critical_events / 7.0
 
         interrupt_time, admission_time, critical_time = st.session_state.simulator.calculate_time_impact(
-            nursing_q, exam_callbacks, peer_interrupts,
-            admissions, consults, transfers, critical_events_per_day,
+            nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
+            admissions, consults, critical_events_per_day,
             providers
         )
 
         efficiency = st.session_state.simulator.simulate_provider_efficiency(
-            nursing_q + exam_callbacks + peer_interrupts,
+            nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
             providers, workload, critical_events_per_day, admissions, adc
         )
 
@@ -261,7 +272,7 @@ def main():
             with col1:
                 st.plotly_chart(
                     create_interruption_chart(
-                        nursing_q, exam_callbacks, peer_interrupts, st.session_state.simulator
+                        nursing_q, exam_callbacks, peer_interrupts, transfer_calls, st.session_state.simulator
                     ),
                     use_container_width=True
                 )
@@ -313,9 +324,8 @@ def main():
 
             try:
                 current_features = np.array([
-                    nursing_q, exam_callbacks, peer_interrupts,
-                    providers, admissions, consults, transfers,
-                    critical_events
+                    nursing_q, exam_callbacks, peer_interrupts, transfer_calls,
+                    providers, admissions, consults, critical_events
                 ])
 
                 if not st.session_state.model_trained:
