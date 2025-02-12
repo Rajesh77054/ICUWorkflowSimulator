@@ -27,62 +27,43 @@ def calculate_interruptions(nursing_q, exam_callbacks, peer_interrupts, transfer
 
     return per_provider, time_lost
 
-def calculate_workload(adc, admissions, consults, critical_events, providers, simulator):
+def calculate_workload(adc, consults, providers, simulator):
     """Calculate workload relative to total available shift minutes
 
-    Workload is determined by two primary components:
+    Workload is determined by components:
     1. ICU Census (ADC) - Primary workload driver
-    2. Floor Consults - Additional workload component
-
-    Other factors (admissions, transfers, critical events) are treated as interruptions
-    that impact workflow dynamics but don't contribute to base workload.
+    2. Floor Consults - Physician-only workload component
+       - Only physician responds (APP continues ICU work)
+       - Average duration: 45 minutes
+       - Distributed between 8am-5pm
 
     Args:
         adc: Average Daily Census (0-16 patients)
-        consults: Number of floor consults
-        providers: Number of providers working in parallel
+        consults: Number of floor consults per shift
+        providers: Number of providers (typically 2: 1 physician + 1 APP)
         simulator: WorkflowSimulator instance for time calculations
-        Other args: Interruption factors
     """
     # Calculate base ICU workload (scales 0-1 for 0-16 patients)
     icu_workload = adc / 16.0
 
-    # Calculate floor consults workload (each consult adds proportional load)
+    # Calculate floor consults workload
+    # Only affects physician (1 provider), so we multiply by providers to normalize
     consult_time = consults * simulator.admission_times['consult']
-    consult_workload = consult_time / (12 * 60)  # Normalize to shift duration
-
-    # Base workload is the sum of ICU and consult components only
-    base_workload = icu_workload + consult_workload
+    consult_workload = (consult_time / (9 * 60)) * providers  # Normalize to 9-hour consult window (8am-5pm)
 
     # If there's no base workload (no ADC and no consults), return 0
     if adc == 0 and consults == 0:
         return 0.0
 
-    # Calculate interruption impacts
-    admission_time = admissions * (0.7 * simulator.admission_times['simple'] + 
-                                  0.3 * simulator.admission_times['complex'])
-    critical_time = critical_events * simulator.critical_event_time
-
-    # Calculate interruption time
-    interruption_time = simulator.calculate_total_interruption_time(
-        nursing_q=adc * simulator.interruption_scales['nursing_question'],
-        exam_callbacks=adc * simulator.interruption_scales['exam_callback'],
-        peer_interrupts=adc * simulator.interruption_scales['peer_interrupt'],
-        transfer_calls=adc * simulator.interruption_scales['transfer_call'],
-        providers=providers
-    )
-
-    # Calculate total required minutes for interrupting tasks
-    interruption_minutes = admission_time + critical_time + interruption_time
-
-    # Calculate total available minutes across all providers working in parallel
+    # Calculate total available minutes considering provider roles
     available_minutes = providers * 12 * 60  # providers * hours * minutes_per_hour
 
-    # Factor in interruptions impact on workload
-    interruption_impact = interruption_minutes / available_minutes
+    # Adjust for consult impact on physician availability
+    physician_minutes_lost = consult_time
+    provider_impact = physician_minutes_lost / available_minutes
 
-    # Final workload is base_workload plus normalized interruption impact
-    total_workload = (base_workload + interruption_impact) / providers
+    # Final workload considers base ICU load plus normalized consult impact
+    total_workload = icu_workload + (provider_impact * (providers / 1))  # Scale impact to physician only
 
     return total_workload
 

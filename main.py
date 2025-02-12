@@ -56,11 +56,31 @@ def main():
             st.caption("ADC determines base workload and scales interruption frequencies")
 
             # Floor Consults
-            consults = st.number_input(
-                "Floor Consults (per shift)", 
-                0, 20, 4,
-                help="Additional workload from non-ICU consultations"
-            )
+            st.markdown("### Floor Consults (Physician Only)")
+            st.caption("Note: Only the physician responds to floor consults (8 AM - 5 PM)")
+
+            consult_col1, consult_col2 = st.columns(2)
+            with consult_col1:
+                consults = st.number_input(
+                    "Floor Consults (per shift)", 
+                    0, 20, 4,
+                    help="Number of floor consults per dayshift (distributed 8 AM - 5 PM)"
+                )
+                st.caption(f"Average: {(consults/9):.1f} consults per hour")
+
+            with consult_col2:
+                consult_duration = st.number_input(
+                    "Consult Duration (minutes)", 
+                    30, 90, 
+                    value=st.session_state.simulator.admission_times['consult'],
+                    help="Average duration of each floor consult"
+                )
+                total_consult_time = consults * consult_duration
+                st.metric(
+                    "Total Consult Time",
+                    f"{total_consult_time} min",
+                    help="Total time physician spends on floor consults"
+                )
 
             # Providers
             providers = st.number_input(
@@ -183,6 +203,7 @@ def main():
                 'transfer_call': transfer_time
             },
             'admission_times': {
+                'consult': consult_duration,
                 'simple': simple_admission_time,
                 'complex': complex_admission_time,
                 'transfer': 30  # Default transfer time
@@ -198,7 +219,7 @@ def main():
 
         workload = calculate_workload(
             adc, admissions, consults, critical_events/7, providers, 
-            st.session_state.simulator  
+            st.session_state.simulator, consult_duration 
         )
 
         critical_events_per_day = critical_events / 7.0

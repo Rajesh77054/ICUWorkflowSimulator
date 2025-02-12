@@ -86,11 +86,11 @@ class WorkflowSimulator:
         return interrupt_time, admission_time, critical_time
 
     def simulate_provider_efficiency(self, interruptions_per_hour, providers, workload,
-                                   critical_events_per_day, admissions, adc, shift_hours=12):
+                                   critical_events_per_day, admissions, adc):
         """Calculate provider efficiency considering dynamic event distribution"""
         # Generate random event timings for the shift
         np.random.seed(None)  # Ensure random distribution
-        shift_minutes = shift_hours * 60
+        shift_minutes = 12 * 60
 
         # Distribute events across shift
         admission_times = sorted(np.random.choice(shift_minutes, size=admissions, replace=False))
@@ -124,45 +124,16 @@ class WorkflowSimulator:
         base_efficiency = min(1.0, 1.2 - (adc / providers * 0.15))
         interruption_impact = interruptions_per_hour * 0.02  # 2% per interruption/hour
 
+        # Account for consult impact on physician availability (8am-5pm window)
+        consult_window_start = 8 * 60  # 8 AM in minutes
+        consult_window_end = 17 * 60   # 5 PM in minutes
+        consult_window = available_providers[consult_window_start:consult_window_end]
+        physician_availability = np.mean(consult_window) / providers
+
         # Final efficiency considers both base efficiency and provider availability
-        efficiency = base_efficiency * avg_availability * (1 - interruption_impact)
+        efficiency = base_efficiency * avg_availability * physician_availability * (1 - interruption_impact)
 
         return max(0.3, efficiency)  # Minimum efficiency of 30%
-
-        # Account for rounding inefficiency (9-11 AM) only if there are patients
-        rounding_impact = 0
-        if adc > 0:
-            rounding_hours = 2  # 9-11 AM
-            rounding_overhead = 0.8  # 80% overhead during rounds
-            data_collection_inefficiency = 0.3  # 30% inefficiency from repeated data collection
-            rounding_impact = (rounding_overhead + data_collection_inefficiency) * (rounding_hours / shift_hours)
-
-        # Calculate critical event impact on efficiency, accounting for parallel provider work
-        critical_first_hour = min(60, self.critical_event_time)
-        critical_remaining = max(0, self.critical_event_time - 60)
-
-        # During first hour, both providers are unavailable (full impact)
-        total_unavailable_time = critical_first_hour * critical_events_per_day
-        # After first hour, one provider remains on critical event (half impact due to parallel capacity)
-        partial_unavailable_time = critical_remaining * critical_events_per_day
-
-        # Calculate effective shift time reduction accounting for parallel provider capacity
-        shift_minutes = shift_hours * 60
-        total_provider_minutes = shift_minutes * providers if providers > 0 else shift_minutes
-        efficiency_reduction = (
-            (total_unavailable_time * 2) +  # Both providers unavailable
-            partial_unavailable_time        # One provider unavailable
-        ) / total_provider_minutes if total_provider_minutes > 0 else 0
-
-        total_interruptions = interruptions_per_hour * shift_hours
-        regular_efficiency_loss = (total_interruptions * interruption_impact) 
-
-        # Set minimum efficiency to 30% only if there is actual work
-        if workload == 0 and adc == 0 and critical_events_per_day == 0:
-            return 1.0
-        else:
-            return max(0.3, base_efficiency - regular_efficiency_loss - efficiency_reduction - rounding_impact)
-
 
     def calculate_burnout_risk(self, workload_per_provider, interruptions_per_hour, critical_events_per_day):
         """Calculate simple burnout risk metric"""
