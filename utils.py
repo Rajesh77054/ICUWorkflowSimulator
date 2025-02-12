@@ -35,21 +35,18 @@ def calculate_workload(adc, consults, providers, simulator):
     # Calculate floor consults workload (physician only)
     consult_time = consults * simulator.admission_times['consult']
 
-    # If there's no base workload (no ADC and no consults), return 0
-    if adc == 0 and consults == 0:
-        return 0.0
-
     # Calculate total available minutes
     available_minutes = providers * 12 * 60
 
     # Calculate physician-specific impact
     physician_minutes_lost = consult_time
-    physician_impact = physician_minutes_lost / available_minutes
+    physician_impact = physician_minutes_lost / available_minutes if available_minutes > 0 else 0
 
     # Final workload considers base ICU load plus physician-specific impact
     physician_workload = icu_workload + physician_impact
     app_workload = icu_workload  # APP workload excludes consults
 
+    # Always return dictionary structure, even with zero workload
     return {
         'physician': physician_workload,
         'app': app_workload,
