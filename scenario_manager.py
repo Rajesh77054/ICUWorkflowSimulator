@@ -136,68 +136,6 @@ class ScenarioManager:
 
         return pd.DataFrame(results)
 
-    def compare_scenarios(self, scenario_names: List[str]) -> pd.DataFrame:
-        """Compare multiple scenarios and return analysis results"""
-        results = []
-        db = next(get_db())
-        scenarios = get_scenarios(db)
-
-        # Create a mapping of scenario names to their configurations
-        scenario_map = {s.name: s for s in scenarios}
-
-        for name in scenario_names:
-            try:
-                if name not in scenario_map:
-                    raise ValueError(f"Scenario '{name}' not found in database")
-
-                scenario_db = scenario_map[name]
-
-                # Create ScenarioConfig from database record
-                scenario = ScenarioConfig(
-                    name=scenario_db.name,
-                    description=scenario_db.description,
-                    base_config=scenario_db.base_config,
-                    interventions=scenario_db.interventions,
-                    created_at=scenario_db.created_at
-                )
-
-                # Debug logging
-                print(f"\nProcessing scenario: {name}")
-                print(f"Protected time blocks: {scenario.interventions.get('protected_time_blocks', [])}")
-
-                # Run scenario and get results
-                scenario_result = self.run_scenario(scenario)
-
-                # Debug logging for metrics
-                print(f"Calculated metrics for {name}:")
-                print(f"Efficiency: {scenario_result['metrics'].get('efficiency', 0):.3f}")
-                print(f"Cognitive Load: {scenario_result['metrics'].get('cognitive_load', 0):.3f}")
-                print(f"Burnout Risk: {scenario_result['metrics'].get('burnout_risk', 0):.3f}")
-                print(f"Intervention Effectiveness: {scenario_result['metrics'].get('intervention_effectiveness', {})}")
-
-                results.append(scenario_result)
-
-            except Exception as e:
-                print(f"Error processing scenario {name}: {str(e)}")
-                results.append({
-                    'scenario_name': name,
-                    'metrics': {
-                        'error': str(e),
-                        'efficiency': 0,
-                        'cognitive_load': 0,
-                        'burnout_risk': 0,
-                        'intervention_effectiveness': {
-                            'protected_time': 0.0,
-                            'staff_distribution': 0.0,
-                            'task_bundling': 0.0
-                        }
-                    },
-                    'timestamp': datetime.now(),
-                    'config': {},
-                    'interventions': {}
-                })
-
-        return pd.DataFrame(results)
 
     def _apply_interventions(self, interventions: Dict):
         """Apply intervention strategies to the simulator"""
@@ -212,12 +150,16 @@ class ScenarioManager:
 
     def _apply_protected_time_blocks(self, blocks: List[Dict]):
         """Apply protected time blocks to reduce interruptions"""
-        total_protected_hours = 0
+        if not blocks:
+            return
+
         for block in blocks:
+            if not block:  # Skip None blocks
+                continue
+
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
             block_hours = end_hour - start_hour
-            total_protected_hours += block_hours
 
             # Calculate the effectiveness based on time of day
             # Morning blocks (8-12) are most effective for reducing interruptions
@@ -228,9 +170,16 @@ class ScenarioManager:
 
             reduction_factor = block.get('reduction_factor', 0.5) * time_of_day_factor * duration_factor
 
-            # Adjust interruption frequencies during protected time
-            for key in self.simulator.interruption_scales:
-                self.simulator.interruption_scales[key] *= reduction_factor
+            # Only modify nursing questions and floor consults during protected time
+            protected_interruptions = ['nursing_question']
+            for key in protected_interruptions:
+                if key in self.simulator.interruption_scales:
+                    self.simulator.interruption_scales[key] *= reduction_factor
+
+            # Log the changes
+            print(f"Protected time block: {start_hour}:00 - {end_hour}:00")
+            print(f"Reduction factor: {reduction_factor:.2f}")
+            print("Updated interruption scales:", self.simulator.interruption_scales)
 
     def _apply_staff_distribution(self, distribution: Dict):
         """Apply staff distribution patterns"""
@@ -322,11 +271,11 @@ class ScenarioManager:
             return impact
 
         blocks = interventions['protected_time_blocks']
-        if not blocks:  # Handle None or empty list
+        if not blocks:
             return impact
 
         for block in blocks:
-            if not block:  # Skip None blocks
+            if not block:
                 continue
 
             start_hour = block.get('start_hour', 0)
@@ -334,68 +283,39 @@ class ScenarioManager:
             block_hours = end_hour - start_hour
 
             # Calculate time-of-day impact factors
-            morning_factor = max(0, min(1, (11 - start_hour) / 3)) if start_hour <= 11 else 0
-            midday_factor = max(0, min(1, (14 - start_hour) / 3)) if 11 < start_hour <= 14 else 0
-            afternoon_factor = max(0, min(1, (start_hour - 14) / 3)) if start_hour > 14 else 0
+            if 8 <= start_hour <= 11:  # Early morning (optimal)
+                time_factor = 1.2
+                cognitive_factor = 0.25
+                burnout_factor = 0.3
+            elif 11 < start_hour <= 14:  # Mid-day (moderate)
+                time_factor = 1.0
+                cognitive_factor = 0.2
+                burnout_factor = 0.25
+            else:  # Afternoon (less effective)
+                time_factor = 0.8
+                cognitive_factor = 0.15
+                burnout_factor = 0.2
 
-            # Base impact values for different times of day
-            efficiency_factors = {
-                'morning': 0.25,   # 25% boost for morning blocks
-                'midday': 0.15,    # 15% boost for midday blocks
-                'afternoon': 0.10   # 10% boost for afternoon blocks
-            }
+            # Scale impact based on proportion of interrupted activities being protected
+            # Only nursing questions and floor consults are protected
+            protected_activity_ratio = 0.3  # Estimate: 30% of interruptions are nursing questions and consults
 
-            cognitive_factors = {
-                'morning': 0.30,    # 30% reduction for morning blocks
-                'midday': 0.20,     # 20% reduction for midday blocks
-                'afternoon': 0.15    # 15% reduction for afternoon blocks
-            }
+            # Calculate impacts with scaled effectiveness
+            efficiency_impact = min(0.3, block_hours * 0.05 * time_factor) * protected_activity_ratio
+            cognitive_impact = min(0.25, block_hours * cognitive_factor) * protected_activity_ratio
+            burnout_impact = min(0.3, block_hours * burnout_factor) * protected_activity_ratio
 
-            burnout_factors = {
-                'morning': 0.35,    # 35% reduction for morning blocks
-                'midday': 0.25,     # 25% reduction for midday blocks
-                'afternoon': 0.20    # 20% reduction for afternoon blocks
-            }
+            # Update impact values
+            impact['efficiency_boost'] = max(impact['efficiency_boost'], efficiency_impact)
+            impact['cognitive_reduction'] = max(impact['cognitive_reduction'], cognitive_impact)
+            impact['burnout_reduction'] = max(impact['burnout_reduction'], burnout_impact)
 
-            # Calculate weighted impacts based on time of day
-            efficiency_impact = (
-                morning_factor * efficiency_factors['morning'] +
-                midday_factor * efficiency_factors['midday'] +
-                afternoon_factor * efficiency_factors['afternoon']
-            ) * block_hours / 4  # Normalize by typical block length
-
-            cognitive_impact = (
-                morning_factor * cognitive_factors['morning'] +
-                midday_factor * cognitive_factors['midday'] +
-                afternoon_factor * cognitive_factors['afternoon']
-            ) * block_hours / 4
-
-            burnout_impact = (
-                morning_factor * burnout_factors['morning'] +
-                midday_factor * burnout_factors['midday'] +
-                afternoon_factor * burnout_factors['afternoon']
-            ) * block_hours / 4
-
-            # Apply diminishing returns for longer blocks
-            duration_factor = 1.0 if block_hours <= 3 else (3 / block_hours) ** 0.5
-
-            impact['efficiency_boost'] = max(
-                impact['efficiency_boost'],
-                efficiency_impact * duration_factor
-            )
-            impact['cognitive_reduction'] = max(
-                impact['cognitive_reduction'],
-                cognitive_impact * duration_factor
-            )
-            impact['burnout_reduction'] = max(
-                impact['burnout_reduction'],
-                burnout_impact * duration_factor
-            )
-
-        # Ensure impacts stay within reasonable bounds
-        impact['efficiency_boost'] = min(0.35, impact['efficiency_boost'])
-        impact['cognitive_reduction'] = min(0.40, impact['cognitive_reduction'])
-        impact['burnout_reduction'] = min(0.45, impact['burnout_reduction'])
+            # Log the impact calculations
+            print(f"\nProtected time impact calculations for block {start_hour}:00 - {end_hour}:00")
+            print(f"Time factor: {time_factor:.2f}")
+            print(f"Efficiency impact: {efficiency_impact:.3f}")
+            print(f"Cognitive impact: {cognitive_impact:.3f}")
+            print(f"Burnout impact: {burnout_impact:.3f}")
 
         return impact
 
