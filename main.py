@@ -1,31 +1,21 @@
-import logging
+import streamlit as st
+import numpy as np
+import pandas as pd
+from datetime import datetime
+from styles import apply_custom_styles, section_header
+from utils import (calculate_interruptions, calculate_workload,
+                  create_interruption_chart, create_time_allocation_pie,
+                  create_workload_timeline, create_burnout_gauge,
+                  create_burnout_radar_chart, create_prediction_trend_chart,
+                  generate_report_data, format_recommendations)
+from simulator import WorkflowSimulator
+from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
+from ml_predictor import MLPredictor
+from scenario_manager import ScenarioManager
+from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
+import plotly.graph_objects as go
+from scenario_advisor import ScenarioAdvisor # Added import
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-try:
-    import streamlit as st
-    import numpy as np
-    import pandas as pd
-    from datetime import datetime
-    from styles import apply_custom_styles, section_header
-    from utils import (calculate_interruptions, calculate_workload,
-                      create_interruption_chart, create_time_allocation_pie,
-                      create_workload_timeline, create_burnout_gauge,
-                      create_burnout_radar_chart, create_prediction_trend_chart,
-                      generate_report_data, format_recommendations)
-    from simulator import WorkflowSimulator
-    from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
-    from ml_predictor import MLPredictor
-    from scenario_manager import ScenarioManager
-    from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
-    import plotly.graph_objects as go
-    from scenario_advisor import ScenarioAdvisor
-    logger.info("All imports successful")
-except Exception as e:
-    logger.error(f"Error during imports: {str(e)}")
-    raise
 
 def main():
     st.set_page_config(
@@ -574,52 +564,31 @@ def main():
                                     'interventions': interventions
                                 }
                                 st.warning(f"A scenario named '{scenario_name}' already exists. Do you want to overwrite it?")
-                            else:
-                                # Save the scenario
+                                if st.button("Yes, Overwrite", key="btn_overwrite"):
+                                    scenario = save_scenario(
+                                        db, scenario_name, scenario_description,
+                                        base_config, interventions
+                                    )
+                                    st.success(f"Scenario '{scenario_name}' saved successfully!")
+                                    st.session_state.confirm_overwrite = False
+                                    st.session_state.overwrite_scenario_name = None
+                                    st.session_state.overwrite_data = None
+                                if st.button("No, Choose Different Name", key="btn_cancel_overwrite"):
+                                    st.session_state.confirm_overwrite = False
+                                    st.session_state.overwrite_scenario_name = None
+                                    st.session_state.overwrite_data = None
+                            elif not scenario_exists or (scenario_exists and st.session_state.confirm_overwrite):
+                                #Save the scenario
                                 scenario = save_scenario(
                                     db, scenario_name, scenario_description,
                                     base_config, interventions
                                 )
+                                st.success(f"Scenario '{scenario_name}' saved successfully!")
 
-                                # Save initial scenario results
-                                metrics = {
-                                    'efficiency': float(efficiency),
-                                    'cognitive_load': float(cognitive_load),
-                                    'burnout_risk': float(burnout_risk),
-                                    'interruption_reduction': 0.0,
-                                    'task_completion_rate': 0.9,
-                                    'provider_satisfaction': 0.8
-                                }
-
-                                analysis = {
-                                    'implementation_cost': 1000.0,
-                                    'benefit_score': 0.8,
-                                    'roi': 2.5,
-                                    'risk_reduction': {
-                                        'burnout': float(burnout_risk),
-                                        'cognitive': float(cognitive_load)
-                                    },
-                                    'intervention_effectiveness': {
-                                        'protected_time': 0.8 if protected_time else 0.0,
-                                        'staff_distribution': 0.7 if staff_distribution else 0.0,
-                                        'task_bundling': 0.6 if task_bundling else 0.0
-                                    },
-                                    'statistical_significance': {
-                                        'p_value': 0.05,
-                                        'confidence_interval': [0.7, 0.9]
-                                    }
-                                }
-
-                                try:
-                                    save_scenario_result(db, scenario.id, metrics, analysis)
-                                    st.success(f"Scenario '{scenario_name}' saved successfully with initial results!")
-                                except Exception as e:
-                                    st.error(f"Error saving scenario results: {str(e)}")
-
-                            # Reset overwrite state
-                            st.session_state.confirm_overwrite = False
-                            st.session_state.overwrite_scenario_name = None
-                            st.session_state.overwrite_data = None
+                                # Reset overwrite state
+                                st.session_state.confirm_overwrite = False
+                                st.session_state.overwrite_scenario_name = None
+                                st.session_state.overwrite_data = None
 
                         except Exception as e:
                             st.error(f"Error saving scenario: {str(e)}")
@@ -728,91 +697,16 @@ def main():
                         results = get_scenario_results(db, scenario.id)
 
                         if results:
-                            # Create historical trend visualization with proper data formatting
+                            # Create historical trend visualization
                             trend_data = pd.DataFrame([{
                                 'timestamp': r.timestamp,
-                                'efficiency': float(r.efficiency) if r.efficiency is not None else 0.0,
-                                'cognitive_load': float(r.cognitive_load)/100 if r.cognitive_load is not None else 0.0,  # Scale to 0-1
-                                'burnout_risk': float(r.burnout_risk) if r.burnout_risk is not None else 0.0,
-                                'roi': float(r.roi) if r.roi is not None else 0.0
+                                'efficiency': r.efficiency,
+                                'cognitive_load': r.cognitive_load,
+                                'burnout_risk': r.burnout_risk,
+                                'roi': r.roi
                             } for r in results])
 
-                            # Sort data by timestamp
-                            trend_data = trend_data.sort_values('timestamp')
-
-                            # Create individual line charts for each metric
-                            metrics_fig = go.Figure()
-
-                            # Add traces with proper formatting and scaling
-                            metrics_fig.add_trace(go.Scatter(
-                                x=trend_data['timestamp'],
-                                y=trend_data['efficiency'],
-                                name='Efficiency',
-                                line=dict(color='#2ecc71', width=2),
-                                hovertemplate='Efficiency: %{y:.1%}<extra></extra>'
-                            ))
-
-                            metrics_fig.add_trace(go.Scatter(
-                                x=trend_data['timestamp'],
-                                y=trend_data['cognitive_load'],
-                                name='Cognitive Load',
-                                line=dict(color='#e67e22', width=2),
-                                hovertemplate='Cognitive Load: %{y:.1%}<extra></extra>'
-                            ))
-
-                            metrics_fig.add_trace(go.Scatter(
-                                x=trend_data['timestamp'],
-                                y=trend_data['burnout_risk'],
-                                name='Burnout Risk',
-                                line=dict(color='#e74c3c', width=2),
-                                hovertemplate='Burnout Risk: %{y:.1%}<extra></extra>'
-                            ))
-
-                            metrics_fig.update_layout(
-                                title='Historical Trends Analysis',
-                                xaxis_title='Time',
-                                yaxis_title='Value',
-                                yaxis=dict(
-                                    tickformat='.0%',
-                                    range=[0, 1]
-                                ),
-                                hovermode='x unified',
-                                legend=dict(
-                                    orientation="h",
-                                    yanchor="bottom",
-                                    y=1.02,
-                                    xanchor="right",
-                                    x=1
-                                )
-                            )
-
-                            st.plotly_chart(metrics_fig, use_container_width=True)
-
-                            # Display summary statistics with proper formatting
-                            st.markdown("### Summary Statistics")
-                            summary_cols = st.columns(3)
-
-                            with summary_cols[0]:
-                                st.metric(
-                                    "Average Efficiency",
-                                    f"{trend_data['efficiency'].mean():.1%}",
-                                    help="Mean efficiency over time"
-                                )
-
-                            with summary_cols[1]:
-                                st.metric(
-                                    "Average Cognitive Load",
-                                    f"{trend_data['cognitive_load'].mean():.1%}",
-                                    help="Mean cognitive load over time (normalized)"
-                                )
-
-                            with summary_cols[2]:
-                                st.metric(
-                                    "Average Burnout Risk",
-                                    f"{trend_data['burnout_risk'].mean():.1%}",
-                                    help="Mean burnout risk over time"
-                                )
-
+                            st.line_chart(trend_data.set_index('timestamp'))
                         else:
                             st.info("No historical data available for this scenario.")
                 else:
@@ -860,18 +754,15 @@ def main():
                 if historical_records:
                     hist_df = pd.DataFrame([{
                         'Timestamp': record.timestamp,
-                        'Efficiency': float(record.efficiency) if record.efficiency is not None else 0.0,
-                        'Cognitive Load': float(record.cognitive_load) if record.cognitive_load is not None else 0.0,
-                        'Burnout Risk': float(record.burnout_risk) if record.burnout_risk is not None else 0.0,
-                        'Interruptions/Provider': float(record.interrupts_per_provider) if record.interrupts_per_provider is not None else 0.0
-                    } for record in historical_records if record is not None])
+                        'Efficiency': record.efficiency,
+                        'Cognitive Load': record.cognitive_load,
+                        'Burnout Risk': record.burnout_risk,
+                        'Interruptions/Provider': record.interrupts_per_provider
+                    } for record in historical_records])
 
-                    if hist_df.empty:
-                        st.info("No historical data available yet. Data will appear as metrics are recorded.")
-                    else:
-                        st.line_chart(hist_df.set_index('Timestamp')[
-                            ['Efficiency', 'Cognitive Load', 'Burnout Risk']
-                        ])
+                    st.line_chart(hist_df.set_index('Timestamp')[
+                        ['Efficiency', 'Cognitive Load', 'Burnout Risk']
+                    ])
 
             except Exception as e:
                 st.error(f"Error in predictive analytics: {str(e)}")
@@ -892,7 +783,8 @@ def main():
 
                     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
                     st.download_button(
-                        label="Download Report (CSV)",                        data=pd.DataFrame(report_data).to_csv().encode('utf-8'),
+                        label="Download Report (CSV)",
+                        data=pd.DataFrame(report_data).to_csv().encode('utf-8'),
                         file_name=f'workflow_analysis_{current_time}.csv',
                         mime='text/csv'
                     )

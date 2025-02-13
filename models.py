@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, JSON, ForeignKey, text
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
@@ -9,15 +9,8 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Create SQLAlchemy engine with connection pool settings
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # Enable connection health checks
-    pool_recycle=3600,   # Recycle connections after 1 hour
-    pool_size=5,         # Maximum number of connections
-    max_overflow=2,      # Allow 2 connections beyond pool_size
-    pool_timeout=30      # Wait up to 30 seconds for available connection
-)
+# Create SQLAlchemy engine and session
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -108,12 +101,7 @@ Base.metadata.create_all(bind=engine)
 def get_db():
     db = SessionLocal()
     try:
-        # Test the connection
-        db.execute(text('SELECT 1'))
         yield db
-    except Exception as e:
-        db.rollback()
-        raise
     finally:
         db.close()
 
@@ -135,9 +123,9 @@ def save_workflow_record(
         critical_events=critical_events,
         interrupts_per_provider=metrics['interrupts_per_provider'],
         time_lost=metrics['time_lost'],
-        efficiency=float(metrics['efficiency']) if metrics.get('efficiency') is not None else 0.0,
-        cognitive_load=float(metrics['cognitive_load']) if metrics.get('cognitive_load') is not None else 0.0,
-        burnout_risk=float(metrics['burnout_risk']) if metrics.get('burnout_risk') is not None else 0.0,
+        efficiency=metrics['efficiency'],
+        cognitive_load=metrics['cognitive_load'],
+        burnout_risk=metrics['burnout_risk'],
         interrupt_time=metrics['interrupt_time'],
         admission_time=metrics['admission_time'],
         critical_time=metrics['critical_time'],
@@ -165,19 +153,18 @@ def save_scenario(db, name, description, base_config, interventions):
     return scenario
 
 def save_scenario_result(db, scenario_id, metrics, analysis):
-    """Save scenario execution results with proper type handling"""
-    # Ensure all metrics are properly converted to float and handle null values
+    """Save scenario execution results"""
     result = ScenarioResult(
         scenario_id=scenario_id,
-        efficiency=float(metrics['efficiency']) if metrics.get('efficiency') is not None else 0.0,
-        cognitive_load=float(metrics['cognitive_load']) if metrics.get('cognitive_load') is not None else 0.0,
-        burnout_risk=float(metrics['burnout_risk']) if metrics.get('burnout_risk') is not None else 0.0,
-        interruption_reduction=float(metrics.get('interruption_reduction', 0.0)),
-        task_completion_rate=float(metrics.get('task_completion_rate', 0.0)),
-        provider_satisfaction=float(metrics.get('provider_satisfaction', 0.0)),
-        implementation_cost=float(analysis.get('implementation_cost', 0.0)),
-        benefit_score=float(analysis.get('benefit_score', 0.0)),
-        roi=float(analysis.get('roi', 0.0)),
+        efficiency=metrics['efficiency'],
+        cognitive_load=metrics['cognitive_load'],
+        burnout_risk=metrics['burnout_risk'],
+        interruption_reduction=metrics.get('interruption_reduction', 0.0),
+        task_completion_rate=metrics.get('task_completion_rate', 0.0),
+        provider_satisfaction=metrics.get('provider_satisfaction', 0.0),
+        implementation_cost=analysis.get('implementation_cost', 0.0),
+        benefit_score=analysis.get('benefit_score', 0.0),
+        roi=analysis.get('roi', 0.0),
         risk_reduction=analysis.get('risk_reduction', {}),
         intervention_effectiveness=analysis.get('intervention_effectiveness', {}),
         statistical_significance=analysis.get('statistical_significance', {})
