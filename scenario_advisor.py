@@ -1,3 +1,4 @@
+
 from ai_assistant import AIAssistant
 from datetime import datetime
 import pandas as pd
@@ -64,31 +65,28 @@ class ScenarioAdvisor:
                     }
                 })
 
+        # Calculate average impact across all recommendations
+        total_recs = len(formatted_recommendations)
+        if total_recs > 0:
+            impact_analysis = {
+                "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
+                                for r in formatted_recommendations) / total_recs, 50),  # Average capped at 50%
+                "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
+                                    for r in formatted_recommendations) / total_recs, -30),  # Average capped at -30%
+                "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
+                                  for r in formatted_recommendations) / total_recs, -35)  # Average capped at -35%
+            }
+        else:
+            impact_analysis = {
+                "efficiency": 0,
+                "cognitive_load": 0,
+                "burnout_risk": 0
+            }
+        
         return {
             "status": "success",
             "recommendations": formatted_recommendations,
-            # Calculate average impact across all recommendations
-            total_recs = len(formatted_recommendations)
-            if total_recs > 0:
-                impact_analysis = {
-                    "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
-                                    for r in formatted_recommendations) / total_recs, 50),  # Average capped at 50%
-                    "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
-                                        for r in formatted_recommendations) / total_recs, -30),  # Average capped at -30%
-                    "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
-                                      for r in formatted_recommendations) / total_recs, -35)  # Average capped at -35%
-                }
-            else:
-                impact_analysis = {
-                    "efficiency": 0,
-                    "cognitive_load": 0,
-                    "burnout_risk": 0
-                }
-            
-            return {
-                "status": "success",
-                "recommendations": formatted_recommendations,
-                "impact_analysis": impact_analysis,
+            "impact_analysis": impact_analysis,
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)
         }
