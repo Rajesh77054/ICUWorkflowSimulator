@@ -26,22 +26,31 @@ class ScenarioAdvisor:
                 # Extract configuration for quick apply
                 config = self._extract_config_from_recommendation(rec)
 
-                # Format structured recommendation
+                # Format structured recommendation with default values
                 formatted_rec = {
-                    "title": rec.get('suggestion', ''),
+                    "title": rec.get('suggestion', 'Recommendation'),
                     "description": rec.get('description', ''),
                     "risk_factors": rec.get('risk_factors', []),
                     "config": config,  # Configuration for quick apply
-                    "impact": rec.get('expected_impact', {})
+                    "impact": rec.get('expected_impact', {
+                        'efficiency': 0,
+                        'cognitive_load': 0,
+                        'burnout_risk': 0
+                    })
                 }
                 formatted_recommendations.append(formatted_rec)
             else:
-                # Handle plain text recommendations
+                # Handle plain text recommendations with default structure
                 formatted_recommendations.append({
                     "title": "Recommendation",
-                    "description": rec,
+                    "description": str(rec),
+                    "risk_factors": [],
                     "config": {},
-                    "impact": {}
+                    "impact": {
+                        'efficiency': 0,
+                        'cognitive_load': 0,
+                        'burnout_risk': 0
+                    }
                 })
 
         return {

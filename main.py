@@ -504,13 +504,14 @@ def main():
                                             st.markdown(f"#### {i}. {rec['title']}")
                                             st.markdown(rec['description'])
 
-                                            if rec['risk_factors']:
+                                            # More defensive check for risk_factors
+                                            if rec.get('risk_factors', []):  # Changed to use .get() with default empty list
                                                 with st.expander("Risk Factors"):
                                                     for risk in rec['risk_factors']:
                                                         st.markdown(f"• {risk}")
 
                                             # Display impact metrics inline
-                                            if rec['impact']:
+                                            if rec.get('impact', {}):  # Changed to use .get() with default empty dict
                                                 metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
                                                 with metrics_col1:
                                                     if 'efficiency' in rec['impact']:
@@ -523,7 +524,7 @@ def main():
                                                         st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
 
                                         with col2:
-                                            if rec['config']:
+                                            if rec.get('config', {}):  # Changed to use .get() with default empty dict
                                                 if st.button("Quick Apply", key=f"apply_{i}"):
                                                     config = rec['config']
                                                     # Apply configuration
@@ -838,6 +839,7 @@ def main():
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
 
+
 def check_scenario_exists(db, scenario_name):
     #Implementation for checking if a scenario already exists
     #This function should query the database based on scenario_name
@@ -849,10 +851,11 @@ def check_scenario_exists(db, scenario_name):
     return None
 
 
+
 def delete_scenario(db, scenario_id):
     #Implementation to delete a scenario from the database.
     #This function should receive the scenario ID and delete
-    #the corresponding record from the database.
+    #the corresponding#the corresponding record from the database.
     #Example Implementation (replace with actual database interaction)
     pass # Replace with actual database deletion logic
 
