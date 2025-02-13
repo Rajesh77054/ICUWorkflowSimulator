@@ -728,13 +728,6 @@ def main():
 
                 predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
 
-                # Display feature importance
-                if 'feature_importance' in predictions:
-                    st.plotly_chart(
-                        create_feature_importance_chart(predictions['feature_importance']),
-                        use_container_width=True
-                    )
-
                 st.markdown("#### Model Insights")
                 insights_cols = st.columns(2)  # Changed to 2 columns instead of 3
 
@@ -751,6 +744,26 @@ def main():
                         f"{predictions['predicted_burnout']:.0%}",
                         help="Projected burnout risk based on current patterns"
                     )
+
+                # Create visualization for predictions
+                feature_names = [
+                    'Nursing Questions', 'Exam Callbacks', 'Peer Interrupts',
+                    'Transfer Calls', 'Providers', 'Admissions', 'Consults',
+                    'Critical Events'
+                ]
+
+                importance_dict = dict(zip(
+                    feature_names,
+                    st.session_state.predictor.get_feature_importance()
+                ))
+
+                st.markdown("#### Feature Impact Analysis")
+                st.caption("Relative importance of different factors in predicting outcomes")
+
+                st.plotly_chart(
+                    create_feature_importance_chart(importance_dict),
+                    use_container_width=True
+                )
 
             except Exception as e:
                 st.error(f"Error generating predictions: {str(e)}")
