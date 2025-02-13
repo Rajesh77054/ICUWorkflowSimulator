@@ -98,35 +98,99 @@ class ScenarioManager:
                     created_at=scenario_db.created_at
                 )
 
+                # Debug logging
+                print(f"\nProcessing scenario: {name}")
+                print(f"Protected time blocks: {scenario.interventions.get('protected_time_blocks', [])}")
+
                 # Run scenario and get results
                 scenario_result = self.run_scenario(scenario)
 
-                # Add additional metrics from database
-                db_results = get_scenario_results(db, scenario_db.id)
-                if db_results:
-                    latest_result = db_results[0]
-                    scenario_result['metrics'].update({
-                        'efficiency': latest_result.efficiency,
-                        'cognitive_load': latest_result.cognitive_load,
-                        'burnout_risk': latest_result.burnout_risk,
-                        'intervention_effectiveness': latest_result.intervention_effectiveness,
-                        'risk_assessment': latest_result.statistical_significance,
-                        'direct_care_time': 25,  # Default values for time distribution
-                        'interruption_time': 15,
-                        'critical_time': 20,
-                        'admin_time': 40
-                    })
+                # Debug logging for metrics
+                print(f"Calculated metrics for {name}:")
+                print(f"Efficiency: {scenario_result['metrics'].get('efficiency', 0):.3f}")
+                print(f"Cognitive Load: {scenario_result['metrics'].get('cognitive_load', 0):.3f}")
+                print(f"Burnout Risk: {scenario_result['metrics'].get('burnout_risk', 0):.3f}")
+                print(f"Intervention Effectiveness: {scenario_result['metrics'].get('intervention_effectiveness', {})}")
 
                 results.append(scenario_result)
 
             except Exception as e:
+                print(f"Error processing scenario {name}: {str(e)}")
                 results.append({
                     'scenario_name': name,
                     'metrics': {
                         'error': str(e),
                         'efficiency': 0,
                         'cognitive_load': 0,
-                        'burnout_risk': 0
+                        'burnout_risk': 0,
+                        'intervention_effectiveness': {
+                            'protected_time': 0.0,
+                            'staff_distribution': 0.0,
+                            'task_bundling': 0.0
+                        }
+                    },
+                    'timestamp': datetime.now(),
+                    'config': {},
+                    'interventions': {}
+                })
+
+        return pd.DataFrame(results)
+
+    def compare_scenarios(self, scenario_names: List[str]) -> pd.DataFrame:
+        """Compare multiple scenarios and return analysis results"""
+        results = []
+        db = next(get_db())
+        scenarios = get_scenarios(db)
+
+        # Create a mapping of scenario names to their configurations
+        scenario_map = {s.name: s for s in scenarios}
+
+        for name in scenario_names:
+            try:
+                if name not in scenario_map:
+                    raise ValueError(f"Scenario '{name}' not found in database")
+
+                scenario_db = scenario_map[name]
+
+                # Create ScenarioConfig from database record
+                scenario = ScenarioConfig(
+                    name=scenario_db.name,
+                    description=scenario_db.description,
+                    base_config=scenario_db.base_config,
+                    interventions=scenario_db.interventions,
+                    created_at=scenario_db.created_at
+                )
+
+                # Debug logging
+                print(f"\nProcessing scenario: {name}")
+                print(f"Protected time blocks: {scenario.interventions.get('protected_time_blocks', [])}")
+
+                # Run scenario and get results
+                scenario_result = self.run_scenario(scenario)
+
+                # Debug logging for metrics
+                print(f"Calculated metrics for {name}:")
+                print(f"Efficiency: {scenario_result['metrics'].get('efficiency', 0):.3f}")
+                print(f"Cognitive Load: {scenario_result['metrics'].get('cognitive_load', 0):.3f}")
+                print(f"Burnout Risk: {scenario_result['metrics'].get('burnout_risk', 0):.3f}")
+                print(f"Intervention Effectiveness: {scenario_result['metrics'].get('intervention_effectiveness', {})}")
+
+                results.append(scenario_result)
+
+            except Exception as e:
+                print(f"Error processing scenario {name}: {str(e)}")
+                results.append({
+                    'scenario_name': name,
+                    'metrics': {
+                        'error': str(e),
+                        'efficiency': 0,
+                        'cognitive_load': 0,
+                        'burnout_risk': 0,
+                        'intervention_effectiveness': {
+                            'protected_time': 0.0,
+                            'staff_distribution': 0.0,
+                            'task_bundling': 0.0
+                        }
                     },
                     'timestamp': datetime.now(),
                     'config': {},
@@ -188,39 +252,61 @@ class ScenarioManager:
         # Calculate base efficiency impact from protected time blocks
         protected_time_impact = self._calculate_protected_time_impact(scenario.interventions)
 
+        # Calculate base efficiency without impact
+        base_efficiency = self.simulator.simulate_provider_efficiency(
+            sum(self.simulator.interruption_scales.values()),
+            scenario.base_config.get('providers', 1),
+            scenario.base_config.get('workload', 0.0),
+            scenario.base_config.get('critical_events_per_day', 0),
+            scenario.base_config.get('admissions', 0),
+            scenario.base_config.get('adc', 0)
+        )
+
+        # Calculate base cognitive load without impact
+        base_cognitive_load = self.simulator.calculate_cognitive_load(
+            sum(self.simulator.interruption_scales.values()),
+            scenario.base_config.get('critical_events_per_day', 0),
+            scenario.base_config.get('admissions', 0),
+            scenario.base_config.get('workload', 0.0)
+        )
+
+        # Calculate base burnout risk without impact
+        base_burnout_risk = self.simulator.calculate_burnout_risk(
+            scenario.base_config.get('workload', 0.0),
+            sum(self.simulator.interruption_scales.values()),
+            scenario.base_config.get('critical_events_per_day', 0)
+        )
+
+        # Apply protected time impacts
         base_metrics = {
-            'efficiency': min(1.0, self.simulator.simulate_provider_efficiency(
-                sum(self.simulator.interruption_scales.values()),
-                scenario.base_config.get('providers', 1),
-                scenario.base_config.get('workload', 0.0),
-                scenario.base_config.get('critical_events_per_day', 0),
-                scenario.base_config.get('admissions', 0),
-                scenario.base_config.get('adc', 0)
-            ) * (1 + protected_time_impact['efficiency_boost'])),
-
-            'cognitive_load': max(0.0, min(1.0, self.simulator.calculate_cognitive_load(
-                sum(self.simulator.interruption_scales.values()),
-                scenario.base_config.get('critical_events_per_day', 0),
-                scenario.base_config.get('admissions', 0),
-                scenario.base_config.get('workload', 0.0)
-            ) * (1 - protected_time_impact['cognitive_reduction']))),
-
-            'burnout_risk': max(0.0, min(1.0, self.simulator.calculate_burnout_risk(
-                scenario.base_config.get('workload', 0.0),
-                sum(self.simulator.interruption_scales.values()),
-                scenario.base_config.get('critical_events_per_day', 0)
-            ) * (1 - protected_time_impact['burnout_reduction'])))
+            'efficiency': min(1.0, base_efficiency * (1 + protected_time_impact['efficiency_boost'])),
+            'cognitive_load': max(0.0, min(1.0, base_cognitive_load * (1 - protected_time_impact['cognitive_reduction']))),
+            'burnout_risk': max(0.0, min(1.0, base_burnout_risk * (1 - protected_time_impact['burnout_reduction'])))
         }
 
-        # Calculate intervention-specific metrics
+        # Calculate intervention effectiveness
         if scenario.interventions:
-            intervention_metrics = self._calculate_intervention_metrics(scenario)
-            time_distribution = self._calculate_time_distribution(scenario)
-            risk_assessment = self._calculate_risk_assessment(scenario, base_metrics)
+            start_hour = scenario.interventions.get('protected_time_blocks', [{}])[0].get('start_hour', 0)
+            block_hours = scenario.interventions.get('protected_time_blocks', [{}])[0].get('end_hour', 0) - start_hour
 
-            base_metrics.update(intervention_metrics)
-            base_metrics.update(time_distribution)
-            base_metrics['risk_assessment'] = risk_assessment
+            # Calculate effectiveness based on time of day
+            if 8 <= start_hour <= 11:
+                time_effectiveness = 0.8  # Most effective in morning
+            elif 11 < start_hour <= 14:
+                time_effectiveness = 0.6  # Moderately effective mid-day
+            else:
+                time_effectiveness = 0.4  # Less effective in afternoon
+
+            # Apply block duration factor
+            duration_factor = 1.0 if block_hours <= 3 else (3 / block_hours) ** 0.5
+
+            intervention_effectiveness = {
+                'protected_time': time_effectiveness * duration_factor,
+                'staff_distribution': 0.0,  # Not implemented yet
+                'task_bundling': 0.0  # Not implemented yet
+            }
+
+            base_metrics['intervention_effectiveness'] = intervention_effectiveness
 
         return base_metrics
 
@@ -236,40 +322,80 @@ class ScenarioManager:
             return impact
 
         blocks = interventions['protected_time_blocks']
+        if not blocks:  # Handle None or empty list
+            return impact
+
         for block in blocks:
-            if block is None:
+            if not block:  # Skip None blocks
                 continue
 
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
             block_hours = end_hour - start_hour
 
-            # Time of day effectiveness factors
-            if 8 <= start_hour <= 11:  # Early morning (optimal)
-                time_factor = 1.2
-                cognitive_factor = 0.25
-                burnout_factor = 0.3
-            elif 11 < start_hour <= 14:  # Mid-day (moderate)
-                time_factor = 1.0
-                cognitive_factor = 0.2
-                burnout_factor = 0.25
-            else:  # Afternoon (less effective)
-                time_factor = 0.8
-                cognitive_factor = 0.15
-                burnout_factor = 0.2
+            # Calculate time-of-day impact factors
+            morning_factor = max(0, min(1, (11 - start_hour) / 3)) if start_hour <= 11 else 0
+            midday_factor = max(0, min(1, (14 - start_hour) / 3)) if 11 < start_hour <= 14 else 0
+            afternoon_factor = max(0, min(1, (start_hour - 14) / 3)) if start_hour > 14 else 0
 
-            # Duration impact (longer blocks have diminishing returns)
-            duration_factor = 1.0 if block_hours <= 3 else 0.9
+            # Base impact values for different times of day
+            efficiency_factors = {
+                'morning': 0.25,   # 25% boost for morning blocks
+                'midday': 0.15,    # 15% boost for midday blocks
+                'afternoon': 0.10   # 10% boost for afternoon blocks
+            }
 
-            # Calculate impacts
-            efficiency_impact = min(0.3, block_hours * 0.05 * time_factor * duration_factor)
-            cognitive_impact = min(0.25, block_hours * cognitive_factor * duration_factor)
-            burnout_impact = min(0.3, block_hours * burnout_factor * duration_factor)
+            cognitive_factors = {
+                'morning': 0.30,    # 30% reduction for morning blocks
+                'midday': 0.20,     # 20% reduction for midday blocks
+                'afternoon': 0.15    # 15% reduction for afternoon blocks
+            }
 
-            # Update overall impact
-            impact['efficiency_boost'] = max(impact['efficiency_boost'], efficiency_impact)
-            impact['cognitive_reduction'] = max(impact['cognitive_reduction'], cognitive_impact)
-            impact['burnout_reduction'] = max(impact['burnout_reduction'], burnout_impact)
+            burnout_factors = {
+                'morning': 0.35,    # 35% reduction for morning blocks
+                'midday': 0.25,     # 25% reduction for midday blocks
+                'afternoon': 0.20    # 20% reduction for afternoon blocks
+            }
+
+            # Calculate weighted impacts based on time of day
+            efficiency_impact = (
+                morning_factor * efficiency_factors['morning'] +
+                midday_factor * efficiency_factors['midday'] +
+                afternoon_factor * efficiency_factors['afternoon']
+            ) * block_hours / 4  # Normalize by typical block length
+
+            cognitive_impact = (
+                morning_factor * cognitive_factors['morning'] +
+                midday_factor * cognitive_factors['midday'] +
+                afternoon_factor * cognitive_factors['afternoon']
+            ) * block_hours / 4
+
+            burnout_impact = (
+                morning_factor * burnout_factors['morning'] +
+                midday_factor * burnout_factors['midday'] +
+                afternoon_factor * burnout_factors['afternoon']
+            ) * block_hours / 4
+
+            # Apply diminishing returns for longer blocks
+            duration_factor = 1.0 if block_hours <= 3 else (3 / block_hours) ** 0.5
+
+            impact['efficiency_boost'] = max(
+                impact['efficiency_boost'],
+                efficiency_impact * duration_factor
+            )
+            impact['cognitive_reduction'] = max(
+                impact['cognitive_reduction'],
+                cognitive_impact * duration_factor
+            )
+            impact['burnout_reduction'] = max(
+                impact['burnout_reduction'],
+                burnout_impact * duration_factor
+            )
+
+        # Ensure impacts stay within reasonable bounds
+        impact['efficiency_boost'] = min(0.35, impact['efficiency_boost'])
+        impact['cognitive_reduction'] = min(0.40, impact['cognitive_reduction'])
+        impact['burnout_reduction'] = min(0.45, impact['burnout_reduction'])
 
         return impact
 
