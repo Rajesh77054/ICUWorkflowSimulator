@@ -432,13 +432,13 @@ def main():
                     protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 9)
                     protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
 
-                staff_distribution = st.checkbox("Optimize Staff Distribution")
+                staff_distribution = st.checkbox("Optimize Staff Distribution (Physician/APP Mix)")
                 if staff_distribution:
-                    physician_ratio = st.slider("Physician/APP Ratio", 0.0, 1.0, 0.5)
+                    physician_ratio = st.slider("Physician Coverage (0=All APPs, 1=All Physicians)", 0.0, 1.0, 0.5)
 
-                task_bundling = st.checkbox("Enable Task Bundling")
+                task_bundling = st.checkbox("Enable Task Bundling (Group Similar Tasks)")
                 if task_bundling:
-                    bundling_efficiency = st.slider("Expected Efficiency Gain", 0.0, 0.5, 0.2)
+                    bundling_efficiency = st.slider("Time Savings from Bundling (0=None, 0.5=50% faster)", 0.0, 0.5, 0.2)
 
                 with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
