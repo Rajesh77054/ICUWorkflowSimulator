@@ -11,6 +11,10 @@ from utils import (calculate_interruptions, calculate_workload,
 from simulator import WorkflowSimulator
 from models import get_db, save_workflow_record, get_historical_records
 from ml_predictor import MLPredictor
+from scenario_manager import ScenarioManager
+from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
+import plotly.graph_objects as go
+
 
 def main():
     st.set_page_config(
@@ -22,11 +26,11 @@ def main():
     apply_custom_styles()
     st.title("ICU Workflow Dynamics Model")
 
-    # Initialize simulator in session state if not present
+    # Initialize simulator and other components in session state
     if 'simulator' not in st.session_state:
         st.session_state.simulator = WorkflowSimulator()
+        st.session_state.scenario_manager = ScenarioManager(st.session_state.simulator)
 
-    # Initialize ML predictor and training status
     if 'predictor' not in st.session_state:
         st.session_state.predictor = MLPredictor()
         st.session_state.model_trained = False
@@ -49,7 +53,7 @@ def main():
 
             # ICU Census
             adc = st.number_input(
-                "ICU Census (ADC)", 
+                "ICU Census (ADC)",
                 0, 16, 8, 1,
                 help="Average Daily Census - Primary ICU workload driver"
             )
@@ -62,7 +66,7 @@ def main():
             consult_col1, consult_col2 = st.columns(2)
             with consult_col1:
                 consults = st.number_input(
-                    "Floor Consults (per shift)", 
+                    "Floor Consults (per shift)",
                     0, 20, 4,
                     help="Number of floor consults per dayshift (distributed 8 AM - 5 PM)"
                 )
@@ -70,8 +74,8 @@ def main():
 
             with consult_col2:
                 consult_duration = st.number_input(
-                    "Consult Duration (minutes)", 
-                    30, 90, 
+                    "Consult Duration (minutes)",
+                    30, 90,
                     value=st.session_state.simulator.admission_times['consult'],
                     help="Average duration of each floor consult"
                 )
@@ -84,7 +88,7 @@ def main():
 
             # Providers
             providers = st.number_input(
-                "Number of Providers", 
+                "Number of Providers",
                 1, 10, 2,
                 help="Available providers working in parallel"
             )
@@ -99,10 +103,10 @@ def main():
             nq_col1, nq_col2 = st.columns(2)
             with nq_col1:
                 nursing_scale = st.number_input(
-                    "Rate (per patient per hour)", 
+                    "Rate (per patient per hour)",
                     0.0, 2.0,
                     value=st.session_state.simulator.interruption_scales['nursing_question'],
-                    step=0.01, 
+                    step=0.01,
                     format="%.2f"
                 )
                 nursing_q = adc * nursing_scale
@@ -115,10 +119,10 @@ def main():
             ec_col1, ec_col2 = st.columns(2)
             with ec_col1:
                 callback_scale = st.number_input(
-                    "Rate (per patient per hour)", 
+                    "Rate (per patient per hour)",
                     0.0, 2.0,
                     value=st.session_state.simulator.interruption_scales['exam_callback'],
-                    step=0.01, 
+                    step=0.01,
                     format="%.2f"
                 )
                 exam_callbacks = adc * callback_scale
@@ -131,10 +135,10 @@ def main():
             pi_col1, pi_col2 = st.columns(2)
             with pi_col1:
                 peer_scale = st.number_input(
-                    "Rate (per patient per hour)", 
+                    "Rate (per patient per hour)",
                     0.0, 2.0,
                     value=st.session_state.simulator.interruption_scales['peer_interrupt'],
-                    step=0.01, 
+                    step=0.01,
                     format="%.2f"
                 )
                 peer_interrupts = adc * peer_scale
@@ -147,10 +151,10 @@ def main():
             tc_col1, tc_col2 = st.columns(2)
             with tc_col1:
                 transfer_scale = st.number_input(
-                    "Rate (per patient per hour)", 
+                    "Rate (per patient per hour)",
                     0.0, 2.0,
                     value=st.session_state.simulator.interruption_scales.get('transfer_call', 0.1),
-                    step=0.01, 
+                    step=0.01,
                     format="%.2f"
                 )
                 transfer_calls = adc * transfer_scale
@@ -164,31 +168,31 @@ def main():
 
         with ce_col1:
             admissions = st.number_input(
-                "New Admissions (per shift)", 
+                "New Admissions (per shift)",
                 0, 20, 3,
                 help="Expected new ICU admissions"
             )
             simple_admission_time = st.number_input(
-                "Simple Admission Duration", 
+                "Simple Admission Duration",
                 30, 120, 60,
                 help="Minutes required for straightforward admissions"
             )
 
         with ce_col2:
             critical_events = st.number_input(
-                "Critical Events (per week)", 
+                "Critical Events (per week)",
                 0, 50, 5,
                 help="Expected critical events requiring immediate attention"
             )
             complex_admission_time = st.number_input(
-                "Complex Admission Duration", 
+                "Complex Admission Duration",
                 45, 180, 90,
                 help="Minutes required for complex admissions"
             )
 
         with ce_col3:
             critical_event_time = st.number_input(
-                "Critical Event Duration", 
+                "Critical Event Duration",
                 60, 180, 105,
                 help="Average minutes per critical event"
             )
@@ -296,7 +300,7 @@ def main():
                 # Physician time allocation
                 st.plotly_chart(
                     create_time_allocation_pie(
-                        time_lost, 
+                        time_lost,
                         total_consult_time,
                         providers,
                         role='physician'
@@ -307,7 +311,7 @@ def main():
                 # APP time allocation
                 st.plotly_chart(
                     create_time_allocation_pie(
-                        time_lost, 
+                        time_lost,
                         total_consult_time,
                         providers,
                         role='app'
@@ -380,7 +384,7 @@ def main():
                     st.markdown(f"• {rec}")
 
         else:
-            # Administrator View
+            # Administrator View with new Scenario Management section
             st.markdown("### Administrative Dashboard")
 
             # Historical Analysis
@@ -406,6 +410,143 @@ def main():
                     }),
                     use_container_width=True
                 )
+
+            # New Scenario Management Section
+            st.markdown("### Scenario Management")
+            scenario_tab1, scenario_tab2, scenario_tab3 = st.tabs([
+                "Create Scenario", "Compare Scenarios", "Historical Analysis"
+            ])
+
+            with scenario_tab1:
+                st.markdown("#### Create New Scenario")
+                scenario_name = st.text_input("Scenario Name")
+                scenario_description = st.text_area("Description")
+
+                st.markdown("##### Intervention Strategies")
+                protected_time = st.checkbox("Enable Protected Time Blocks")
+                if protected_time:
+                    protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 9)
+                    protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
+
+                staff_distribution = st.checkbox("Optimize Staff Distribution")
+                if staff_distribution:
+                    physician_ratio = st.slider("Physician/APP Ratio", 0.0, 1.0, 0.5)
+
+                task_bundling = st.checkbox("Enable Task Bundling")
+                if task_bundling:
+                    bundling_efficiency = st.slider("Expected Efficiency Gain", 0.0, 0.5, 0.2)
+
+                if st.button("Save Scenario"):
+                    try:
+                        # Create scenario configuration
+                        base_config = {
+                            'providers': providers,
+                            'adc': adc,
+                            'consults': consults,
+                            'critical_events': critical_events,
+                            'workload': workload['combined']
+                        }
+
+                        interventions = {
+                            'protected_time_blocks': [{
+                                'start_hour': protected_start,
+                                'end_hour': protected_start + protected_duration,
+                                'reduction_factor': 0.5
+                            }] if protected_time else None,
+                            'staff_distribution': {
+                                'physician_ratio': physician_ratio
+                            } if staff_distribution else None,
+                            'task_bundling': {
+                                'efficiency_factor': 1 - bundling_efficiency
+                            } if task_bundling else None
+                        }
+
+                        # Save scenario to database
+                        db = next(get_db())
+                        scenario = save_scenario(
+                            db, scenario_name, scenario_description,
+                            base_config, interventions
+                        )
+                        st.success(f"Scenario '{scenario_name}' saved successfully!")
+
+                    except Exception as e:
+                        st.error(f"Error saving scenario: {str(e)}")
+
+            with scenario_tab2:
+                st.markdown("#### Compare Scenarios")
+                db = next(get_db())
+                scenarios = get_scenarios(db)
+
+                if scenarios:
+                    selected_scenarios = st.multiselect(
+                        "Select Scenarios to Compare",
+                        options=[s.name for s in scenarios],
+                        max_selections=3
+                    )
+
+                    if selected_scenarios:
+                        if st.button("Run Comparison"):
+                            comparison_results = st.session_state.scenario_manager.compare_scenarios(
+                                selected_scenarios
+                            )
+
+                            # Display comparison results
+                            st.dataframe(comparison_results)
+
+                            # Create visualization of key metrics
+                            metrics_fig = go.Figure()
+                            for scenario in selected_scenarios:
+                                scenario_data = comparison_results[
+                                    comparison_results['scenario_name'] == scenario
+                                ]
+                                metrics_fig.add_trace(go.Bar(
+                                    name=scenario,
+                                    x=['Efficiency', 'Cognitive Load', 'Burnout Risk'],
+                                    y=[
+                                        scenario_data['metrics'].iloc[0]['efficiency'],
+                                        scenario_data['metrics'].iloc[0]['cognitive_load'],
+                                        scenario_data['metrics'].iloc[0]['burnout_risk']
+                                    ]
+                                ))
+
+                            metrics_fig.update_layout(
+                                title="Scenario Comparison - Key Metrics",
+                                barmode='group'
+                            )
+                            st.plotly_chart(metrics_fig, use_container_width=True)
+                else:
+                    st.info("No scenarios available. Create scenarios to compare them.")
+
+            with scenario_tab3:
+                st.markdown("#### Historical Analysis")
+                db = next(get_db())
+                scenarios = get_scenarios(db)
+
+                if scenarios:
+                    selected_scenario = st.selectbox(
+                        "Select Scenario",
+                        options=[s.name for s in scenarios]
+                    )
+
+                    if selected_scenario:
+                        scenario = next(s for s in scenarios if s.name == selected_scenario)
+                        results = get_scenario_results(db, scenario.id)
+
+                        if results:
+                            # Create historical trend visualization
+                            trend_data = pd.DataFrame([{
+                                'timestamp': r.timestamp,
+                                'efficiency': r.efficiency,
+                                'cognitive_load': r.cognitive_load,
+                                'burnout_risk': r.burnout_risk,
+                                'roi': r.roi
+                            } for r in results])
+
+                            st.line_chart(trend_data.set_index('timestamp'))
+                        else:
+                            st.info("No historical data available for this scenario.")
+                else:
+                    st.info("No scenarios available for historical analysis.")
 
             # Predictive Analytics
             st.markdown("### Predictive Insights")
