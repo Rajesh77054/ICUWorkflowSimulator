@@ -573,9 +573,9 @@ def main():
 
                                 # Save initial scenario results
                                 metrics = {
-                                    'efficiency': efficiency,
-                                    'cognitive_load': cognitive_load,
-                                    'burnout_risk': burnout_risk,
+                                    'efficiency': float(efficiency),
+                                    'cognitive_load': float(cognitive_load),
+                                    'burnout_risk': float(burnout_risk),
                                     'interruption_reduction': 0.0,
                                     'task_completion_rate': 0.9,
                                     'provider_satisfaction': 0.8
@@ -586,8 +586,8 @@ def main():
                                     'benefit_score': 0.8,
                                     'roi': 2.5,
                                     'risk_reduction': {
-                                        'burnout': burnout_risk,
-                                        'cognitive': cognitive_load
+                                        'burnout': float(burnout_risk),
+                                        'cognitive': float(cognitive_load)
                                     },
                                     'intervention_effectiveness': {
                                         'protected_time': 0.8 if protected_time else 0.0,
@@ -600,13 +600,16 @@ def main():
                                     }
                                 }
 
-                                save_scenario_result(db, scenario.id, metrics, analysis)
-                                st.success(f"Scenario '{scenario_name}' saved successfully with initial results!")
+                                try:
+                                    save_scenario_result(db, scenario.id, metrics, analysis)
+                                    st.success(f"Scenario '{scenario_name}' saved successfully with initial results!")
+                                except Exception as e:
+                                    st.error(f"Error saving scenario results: {str(e)}")
 
-                                # Reset overwrite state
-                                st.session_state.confirm_overwrite = False
-                                st.session_state.overwrite_scenario_name = None
-                                st.session_state.overwrite_data = None
+                            # Reset overwrite state
+                            st.session_state.confirm_overwrite = False
+                            st.session_state.overwrite_scenario_name = None
+                            st.session_state.overwrite_data = None
 
                         except Exception as e:
                             st.error(f"Error saving scenario: {str(e)}")
@@ -719,7 +722,7 @@ def main():
                             trend_data = pd.DataFrame([{
                                 'timestamp': r.timestamp,
                                 'efficiency': float(r.efficiency) if r.efficiency is not None else 0.0,
-                                'cognitive_load': float(r.cognitive_load) if r.cognitive_load is not None else 0.0,
+                                'cognitive_load': float(r.cognitive_load)/100 if r.cognitive_load is not None else 0.0,  # Scale to 0-1
                                 'burnout_risk': float(r.burnout_risk) if r.burnout_risk is not None else 0.0,
                                 'roi': float(r.roi) if r.roi is not None else 0.0
                             } for r in results])
@@ -730,38 +733,39 @@ def main():
                             # Create individual line charts for each metric
                             metrics_fig = go.Figure()
 
+                            # Add traces with proper formatting and scaling
                             metrics_fig.add_trace(go.Scatter(
                                 x=trend_data['timestamp'],
                                 y=trend_data['efficiency'],
                                 name='Efficiency',
-                                line=dict(color='#2ecc71', width=2)
+                                line=dict(color='#2ecc71', width=2),
+                                hovertemplate='Efficiency: %{y:.1%}<extra></extra>'
                             ))
 
                             metrics_fig.add_trace(go.Scatter(
                                 x=trend_data['timestamp'],
                                 y=trend_data['cognitive_load'],
                                 name='Cognitive Load',
-                                line=dict(color='#e67e22', width=2)
+                                line=dict(color='#e67e22', width=2),
+                                hovertemplate='Cognitive Load: %{y:.1%}<extra></extra>'
                             ))
 
                             metrics_fig.add_trace(go.Scatter(
                                 x=trend_data['timestamp'],
                                 y=trend_data['burnout_risk'],
                                 name='Burnout Risk',
-                                line=dict(color='#e74c3c', width=2)
-                            ))
-
-                            metrics_fig.add_trace(go.Scatter(
-                                x=trend_data['timestamp'],
-                                y=trend_data['roi'],
-                                name='ROI',
-                                line=dict(color='#3498db', width=2)
+                                line=dict(color='#e74c3c', width=2),
+                                hovertemplate='Burnout Risk: %{y:.1%}<extra></extra>'
                             ))
 
                             metrics_fig.update_layout(
                                 title='Historical Trends Analysis',
                                 xaxis_title='Time',
                                 yaxis_title='Value',
+                                yaxis=dict(
+                                    tickformat='.0%',
+                                    range=[0, 1]
+                                ),
                                 hovermode='x unified',
                                 legend=dict(
                                     orientation="h",
@@ -774,9 +778,9 @@ def main():
 
                             st.plotly_chart(metrics_fig, use_container_width=True)
 
-                            # Display summary statistics
+                            # Display summary statistics with proper formatting
                             st.markdown("### Summary Statistics")
-                            summary_cols = st.columns(4)
+                            summary_cols = st.columns(3)
 
                             with summary_cols[0]:
                                 st.metric(
@@ -788,8 +792,8 @@ def main():
                             with summary_cols[1]:
                                 st.metric(
                                     "Average Cognitive Load",
-                                    f"{trend_data['cognitive_load'].mean():.1f}",
-                                    help="Mean cognitive load over time"
+                                    f"{trend_data['cognitive_load'].mean():.1%}",
+                                    help="Mean cognitive load over time (normalized)"
                                 )
 
                             with summary_cols[2]:
@@ -799,12 +803,6 @@ def main():
                                     help="Mean burnout risk over time"
                                 )
 
-                            with summary_cols[3]:
-                                st.metric(
-                                    "Average ROI",
-                                    f"{trend_data['roi'].mean():.1f}",
-                                    help="Mean ROI over time"
-                                )
                         else:
                             st.info("No historical data available for this scenario.")
                 else:

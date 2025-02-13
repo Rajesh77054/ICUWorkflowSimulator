@@ -165,18 +165,19 @@ def save_scenario(db, name, description, base_config, interventions):
     return scenario
 
 def save_scenario_result(db, scenario_id, metrics, analysis):
-    """Save scenario execution results"""
+    """Save scenario execution results with proper type handling"""
+    # Ensure all metrics are properly converted to float and handle null values
     result = ScenarioResult(
         scenario_id=scenario_id,
-        efficiency=metrics['efficiency'],
-        cognitive_load=metrics['cognitive_load'],
-        burnout_risk=metrics['burnout_risk'],
-        interruption_reduction=metrics.get('interruption_reduction', 0.0),
-        task_completion_rate=metrics.get('task_completion_rate', 0.0),
-        provider_satisfaction=metrics.get('provider_satisfaction', 0.0),
-        implementation_cost=analysis.get('implementation_cost', 0.0),
-        benefit_score=analysis.get('benefit_score', 0.0),
-        roi=analysis.get('roi', 0.0),
+        efficiency=float(metrics['efficiency']) if metrics.get('efficiency') is not None else 0.0,
+        cognitive_load=float(metrics['cognitive_load']) if metrics.get('cognitive_load') is not None else 0.0,
+        burnout_risk=float(metrics['burnout_risk']) if metrics.get('burnout_risk') is not None else 0.0,
+        interruption_reduction=float(metrics.get('interruption_reduction', 0.0)),
+        task_completion_rate=float(metrics.get('task_completion_rate', 0.0)),
+        provider_satisfaction=float(metrics.get('provider_satisfaction', 0.0)),
+        implementation_cost=float(analysis.get('implementation_cost', 0.0)),
+        benefit_score=float(analysis.get('benefit_score', 0.0)),
+        roi=float(analysis.get('roi', 0.0)),
         risk_reduction=analysis.get('risk_reduction', {}),
         intervention_effectiveness=analysis.get('intervention_effectiveness', {}),
         statistical_significance=analysis.get('statistical_significance', {})
