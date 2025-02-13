@@ -7,7 +7,7 @@ from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
                   create_workload_timeline, create_burnout_gauge,
                   create_burnout_radar_chart, create_prediction_trend_chart,
-                  generate_report_data, format_recommendations)
+                  generate_report_data, format_recommendations, create_feature_importance_chart) #Added import
 from simulator import WorkflowSimulator
 from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
 from ml_predictor import MLPredictor
@@ -727,51 +727,46 @@ def main():
                         st.session_state.model_trained = True
 
                 predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
-                trend_predictions = st.session_state.predictor.predict_next_week(current_features)
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric(
-                        "Predicted Workload Risk",
-                        f"{predictions['predicted_workload']:.1%}"
+                # Display feature importance
+                if 'feature_importance' in predictions:
+                    st.plotly_chart(
+                        create_feature_importance_chart(predictions['feature_importance']),
+                        use_container_width=True
                     )
-                with col2:
+
+                st.markdown("#### Model Insights")
+                insights_cols = st.columns(3)
+
+                with insights_cols[0]:
+                    st.metric(
+                        "Predicted Efficiency",
+                        f"{predictions['efficiency']:.0%}",
+                        help="Projected workflow efficiency based on current patterns"
+                    )
+
+                with insights_cols[1]:
+                    st.metric(
+                        "Predicted Cognitive Load",
+                        f"{predictions['cognitive_load']:.0f}%",
+                        help="Projected cognitive load based on current patterns"
+                    )
+
+                with insights_cols[2]:
                     st.metric(
                         "Predicted Burnout Risk",
-                        f"{predictions['predicted_burnout']:.1%}"
+                        f"{predictions['burnout_risk']:.0%}",
+                        help="Projected burnout risk based on current patterns"
                     )
 
-                st.plotly_chart(
-                    create_prediction_trend_chart(trend_predictions),
-                    use_container_width=True
-                )
-
-                # Historical Data Analysis
-                st.markdown("### Historical Trends")
-                db = next(get_db())
-                historical_records = get_historical_records(db)
-
-                if historical_records:
-                    hist_df = pd.DataFrame([{
-                        'Timestamp': record.timestamp,
-                        'Efficiency': record.efficiency,
-                        'Cognitive Load': record.cognitive_load,
-                        'Burnout Risk': record.burnout_risk,
-                        'Interruptions/Provider': record.interrupts_per_provider
-                    } for record in historical_records])
-
-                    st.line_chart(hist_df.set_index('Timestamp')[
-                        ['Efficiency', 'Cognitive Load', 'Burnout Risk']
-                    ])
-
             except Exception as e:
-                st.error(f"Error in predictive analytics: {str(e)}")
+                st.error(f"Error generating predictions: {str(e)}")
 
             # Export Options
             with st.expander("📊 Export Reports"):
                 report_type = st.selectbox(
                     "Select Report Type",
-                    ["Current State Analysis", "Historical Trends", "Predictive Analysis"]
+                    ["Current State Analysis", "Predictive Analysis"] #Removed "Historical Trends"
                 )
 
                 if st.button("Generate Report"):
