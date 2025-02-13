@@ -852,10 +852,10 @@ def main():
                 if historical_records:
                     hist_df = pd.DataFrame([{
                         'Timestamp': record.timestamp,
-                        'Efficiency': record.efficiency,
-                        'Cognitive Load': record.cognitive_load,
-                        'Burnout Risk': record.burnout_risk,
-                        'Interruptions/Provider': record.interrupts_per_provider
+                        'Efficiency': float(record.efficiency) if record.efficiency is not None else 0.0,
+                        'Cognitive Load': float(record.cognitive_load) if record.cognitive_load is not None else 0.0,
+                        'Burnout Risk': float(record.burnout_risk) if record.burnout_risk is not None else 0.0,
+                        'Interruptions/Provider': float(record.interrupts_per_provider) if record.interrupts_per_provider is not None else 0.0
                     } for record in historical_records])
 
                     st.line_chart(hist_df.set_index('Timestamp')[
