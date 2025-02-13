@@ -154,6 +154,14 @@ def save_scenario(db, name, description, base_config, interventions):
 
 def save_scenario_result(db, scenario_id, metrics, analysis):
     """Save scenario execution results"""
+    # Ensure the intervention_effectiveness is a dictionary
+    if not isinstance(metrics.get('intervention_effectiveness'), dict):
+        metrics['intervention_effectiveness'] = {
+            'protected_time': 0.0,
+            'staff_distribution': 0.0,
+            'task_bundling': 0.0
+        }
+
     result = ScenarioResult(
         scenario_id=scenario_id,
         efficiency=metrics['efficiency'],
@@ -166,7 +174,7 @@ def save_scenario_result(db, scenario_id, metrics, analysis):
         benefit_score=analysis.get('benefit_score', 0.0),
         roi=analysis.get('roi', 0.0),
         risk_reduction=analysis.get('risk_reduction', {}),
-        intervention_effectiveness=analysis.get('intervention_effectiveness', {}),
+        intervention_effectiveness=metrics.get('intervention_effectiveness', {}),
         statistical_significance=analysis.get('statistical_significance', {})
     )
 

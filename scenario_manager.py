@@ -225,22 +225,60 @@ class ScenarioManager:
 
     def _calculate_intervention_metrics(self, scenario: ScenarioConfig) -> Dict:
         """Calculate metrics specific to interventions"""
-        metrics = {}
+        metrics = {
+            'intervention_effectiveness': {
+                'protected_time': 0.0,
+                'staff_distribution': 0.0,
+                'task_bundling': 0.0
+            }
+        }
 
-        if scenario.protected_time_blocks:
-            metrics['protected_time_efficiency'] = self._calculate_protected_time_efficiency(
-                scenario.protected_time_blocks
-            )
+        if scenario.interventions.get('protected_time_blocks'):
+            blocks = scenario.interventions['protected_time_blocks']
+            protected_time_effectiveness = 0.0
 
-        if scenario.staff_distribution:
-            metrics['staff_distribution_impact'] = self._calculate_staff_distribution_impact(
-                scenario.staff_distribution
-            )
+            for block in blocks:
+                if block is None:
+                    continue
 
-        if scenario.task_bundling:
-            metrics['task_bundling_efficiency'] = self._calculate_task_bundling_efficiency(
-                scenario.task_bundling
-            )
+                start_hour = block.get('start_hour', 0)
+                end_hour = block.get('end_hour', 0)
+                block_hours = end_hour - start_hour
+
+                # Calculate base effectiveness
+                base_effectiveness = min(0.8, block_hours * 0.1)  # Max 80% effectiveness
+
+                # Time of day factors
+                if 8 <= start_hour <= 11:  # Early morning is most effective
+                    time_factor = 1.2
+                elif 11 < start_hour <= 14:  # Mid-day is moderately effective
+                    time_factor = 1.0
+                else:  # Afternoon is less effective
+                    time_factor = 0.8
+
+                # Duration factors - longer blocks are less efficient per hour
+                duration_factor = 1.0 if block_hours <= 3 else 0.9
+
+                block_effectiveness = base_effectiveness * time_factor * duration_factor
+                protected_time_effectiveness = max(protected_time_effectiveness, block_effectiveness)
+
+            metrics['intervention_effectiveness']['protected_time'] = protected_time_effectiveness
+
+        if scenario.interventions.get('staff_distribution'):
+            dist = scenario.interventions['staff_distribution']
+            # Calculate staff distribution effectiveness based on optimal ratios
+            optimal_ratio = 0.4  # 40% physicians is considered optimal
+            current_ratio = dist.get('physician_ratio', 0.5)
+            ratio_difference = abs(optimal_ratio - current_ratio)
+            effectiveness = max(0.0, 1.0 - (ratio_difference * 2))  # Linear penalty for deviation
+            metrics['intervention_effectiveness']['staff_distribution'] = effectiveness
+
+        if scenario.interventions.get('task_bundling'):
+            bundling = scenario.interventions['task_bundling']
+            # Calculate task bundling effectiveness
+            efficiency_factor = bundling.get('efficiency_factor', 1.0)
+            effectiveness = min(0.9, (1.0 - efficiency_factor) * 1.5)  # Convert efficiency to effectiveness
+            metrics['intervention_effectiveness']['task_bundling'] = effectiveness
 
         return metrics
 
