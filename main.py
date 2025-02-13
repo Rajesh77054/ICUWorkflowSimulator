@@ -697,16 +697,96 @@ def main():
                         results = get_scenario_results(db, scenario.id)
 
                         if results:
-                            # Create historical trend visualization
+                            # Create historical trend visualization with proper data formatting
                             trend_data = pd.DataFrame([{
                                 'timestamp': r.timestamp,
-                                'efficiency': r.efficiency,
-                                'cognitive_load': r.cognitive_load,
-                                'burnout_risk': r.burnout_risk,
-                                'roi': r.roi
+                                'efficiency': float(r.efficiency) if r.efficiency is not None else 0.0,
+                                'cognitive_load': float(r.cognitive_load) if r.cognitive_load is not None else 0.0,
+                                'burnout_risk': float(r.burnout_risk) if r.burnout_risk is not None else 0.0,
+                                'roi': float(r.roi) if r.roi is not None else 0.0
                             } for r in results])
 
-                            st.line_chart(trend_data.set_index('timestamp'))
+                            # Sort data by timestamp
+                            trend_data = trend_data.sort_values('timestamp')
+
+                            # Create individual line charts for each metric
+                            metrics_fig = go.Figure()
+
+                            metrics_fig.add_trace(go.Scatter(
+                                x=trend_data['timestamp'],
+                                y=trend_data['efficiency'],
+                                name='Efficiency',
+                                line=dict(color='#2ecc71', width=2)
+                            ))
+
+                            metrics_fig.add_trace(go.Scatter(
+                                x=trend_data['timestamp'],
+                                y=trend_data['cognitive_load'],
+                                name='Cognitive Load',
+                                line=dict(color='#e67e22', width=2)
+                            ))
+
+                            metrics_fig.add_trace(go.Scatter(
+                                x=trend_data['timestamp'],
+                                y=trend_data['burnout_risk'],
+                                name='Burnout Risk',
+                                line=dict(color='#e74c3c', width=2)
+                            ))
+
+                            metrics_fig.add_trace(go.Scatter(
+                                x=trend_data['timestamp'],
+                                y=trend_data['roi'],
+                                name='ROI',
+                                line=dict(color='#3498db', width=2)
+                            ))
+
+                            metrics_fig.update_layout(
+                                title='Historical Trends Analysis',
+                                xaxis_title='Time',
+                                yaxis_title='Value',
+                                hovermode='x unified',
+                                legend=dict(
+                                    orientation="h",
+                                    yanchor="bottom",
+                                    y=1.02,
+                                    xanchor="right",
+                                    x=1
+                                )
+                            )
+
+                            st.plotly_chart(metrics_fig, use_container_width=True)
+
+                            # Display summary statistics
+                            st.markdown("### Summary Statistics")
+                            summary_cols = st.columns(4)
+
+                            with summary_cols[0]:
+                                st.metric(
+                                    "Average Efficiency",
+                                    f"{trend_data['efficiency'].mean():.1%}",
+                                    help="Mean efficiency over time"
+                                )
+
+                            with summary_cols[1]:
+                                st.metric(
+                                    "Average Cognitive Load",
+                                    f"{trend_data['cognitive_load'].mean():.1f}",
+                                    help="Mean cognitive load over time"
+                                )
+
+                            with summary_cols[2]:
+                                st.metric(
+                                    "Average Burnout Risk",
+                                    f"{trend_data['burnout_risk'].mean():.1%}",
+                                    help="Mean burnout risk over time"
+                                )
+
+                            with summary_cols[3]:
+                                st.metric(
+                                    "Average ROI",
+                                    f"{trend_data['roi'].mean():.1f}",
+                                    help="Mean ROI over time"
+                                )
                         else:
                             st.info("No historical data available for this scenario.")
                 else:
