@@ -663,16 +663,28 @@ def main():
                                                 div.stButton > button {
                                                     width: 100%;
                                                     margin-top: 20px;
+                                                    background-color: #ff4b4b;
+                                                    color: white;
+                                                    border: none;
+                                                    padding: 10px 15px;
+                                                    border-radius: 5px;
+                                                }
+                                                div.stButton > button:hover {
+                                                    background-color: #ff2b2b;
                                                 }
                                                 </style>
                                             """, unsafe_allow_html=True)
                                             
-                                            if st.button("🚀 Quick Apply", key=f"quick_apply_{i}", type="primary"):
+                                            quick_apply_key = f"quick_apply_{rec['title']}_{i}"
+                                            if st.button("🚀 Quick Apply", key=quick_apply_key, type="primary"):
                                                 config = rec['config']
-                                                StateManager.update_from_config(config)
-                                                st.success("Configuration applied!")
-                                                time.sleep(0.5)
-                                                st.rerun()
+                                                success = StateManager.update_from_config(config)
+                                                if success:
+                                                    st.success("Configuration applied successfully!")
+                                                    time.sleep(0.5)
+                                                    st.rerun()
+                                                else:
+                                                    st.error("Failed to apply configuration")
 
                                     st.markdown("---")
 
