@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import logging
 from urllib.parse import urlparse, parse_qs
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -132,8 +133,8 @@ class ScenarioResult(Base):
 def get_db():
     db = SessionLocal()
     try:
-        # Test the connection
-        db.execute("SELECT 1")
+        # Test the connection with properly declared SQL text
+        db.execute(text("SELECT 1"))
         yield db
     except Exception as e:
         logger.error(f"Database connection error: {e}")
