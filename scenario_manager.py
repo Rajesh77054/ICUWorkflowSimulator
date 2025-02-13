@@ -15,12 +15,6 @@ class ScenarioConfig:
     interventions: Dict
     created_at: datetime = datetime.now()
 
-    # Intervention parameters
-    protected_time_blocks: List[Dict] = None  # Time blocks where interruptions are reduced
-    staff_distribution: Dict = None  # Provider distribution patterns
-    task_bundling: Dict = None  # Task grouping strategies
-    coverage_model: str = "standard"  # Type of coverage model
-
 class ScenarioManager:
     def __init__(self, simulator: WorkflowSimulator):
         self.simulator = simulator
@@ -45,25 +39,35 @@ class ScenarioManager:
         """Run a scenario and return the results"""
         # Store original simulator settings
         original_settings = {
-            'interruption_times': self.simulator.interruption_times.copy(),
+            'interruption_scales': self.simulator.interruption_scales.copy(),
             'admission_times': self.simulator.admission_times.copy(),
             'critical_event_time': self.simulator.critical_event_time
         }
 
         try:
-            # Apply scenario configurations
-            self.simulator.update_time_settings(scenario.base_config)
+            # Calculate baseline metrics before applying interventions
+            baseline_metrics = self._calculate_baseline_metrics(scenario.base_config)
 
             # Apply interventions if specified
             if scenario.interventions:
                 self._apply_interventions(scenario.interventions)
 
-            # Calculate metrics
-            results = self._calculate_scenario_metrics(scenario)
+            # Calculate post-intervention metrics
+            intervention_metrics = self._calculate_intervention_metrics(scenario)
+
+            # Calculate time distributions
+            time_distribution = self._calculate_time_distribution(scenario, baseline_metrics)
+
+            # Combine all metrics
+            combined_metrics = {
+                **baseline_metrics,
+                **intervention_metrics,
+                **time_distribution
+            }
 
             return {
                 'scenario_name': scenario.name,
-                'metrics': results,
+                'metrics': combined_metrics,
                 'timestamp': datetime.now(),
                 'config': scenario.base_config,
                 'interventions': scenario.interventions
@@ -71,15 +75,34 @@ class ScenarioManager:
 
         finally:
             # Restore original settings
-            self.simulator.update_time_settings(original_settings)
+            self.simulator.interruption_scales = original_settings['interruption_scales']
+            self.simulator.admission_times = original_settings['admission_times']
+            self.simulator.critical_event_time = original_settings['critical_event_time']
+
+    def _calculate_baseline_metrics(self, base_config: Dict) -> Dict:
+        """Calculate baseline metrics before interventions"""
+        total_interruptions = sum(self.simulator.interruption_scales.values())
+        protected_interruptions = self.simulator.interruption_scales.get('nursing_question', 0)
+        unprotected_interruptions = total_interruptions - protected_interruptions
+
+        return {
+            'baseline_efficiency': self.simulator.simulate_provider_efficiency(
+                total_interruptions,
+                base_config.get('providers', 1),
+                base_config.get('workload', 0.0),
+                base_config.get('critical_events_per_day', 0),
+                base_config.get('admissions', 0),
+                base_config.get('adc', 0)
+            ),
+            'baseline_protected_interruptions': protected_interruptions,
+            'baseline_unprotected_interruptions': unprotected_interruptions,
+        }
 
     def compare_scenarios(self, scenario_names: List[str]) -> pd.DataFrame:
         """Compare multiple scenarios and return analysis results"""
         results = []
         db = next(get_db())
         scenarios = get_scenarios(db)
-
-        # Create a mapping of scenario names to their configurations
         scenario_map = {s.name: s for s in scenarios}
 
         for name in scenario_names:
@@ -88,8 +111,6 @@ class ScenarioManager:
                     raise ValueError(f"Scenario '{name}' not found in database")
 
                 scenario_db = scenario_map[name]
-
-                # Create ScenarioConfig from database record
                 scenario = ScenarioConfig(
                     name=scenario_db.name,
                     description=scenario_db.description,
@@ -98,16 +119,13 @@ class ScenarioManager:
                     created_at=scenario_db.created_at
                 )
 
-                # Debug logging
                 print(f"\nProcessing scenario: {name}")
                 print(f"Protected time blocks: {scenario.interventions.get('protected_time_blocks', [])}")
 
-                # Run scenario and get results
                 scenario_result = self.run_scenario(scenario)
 
-                # Debug logging for metrics
                 print(f"Calculated metrics for {name}:")
-                print(f"Efficiency: {scenario_result['metrics'].get('efficiency', 0):.3f}")
+                print(f"Efficiency: {scenario_result['metrics'].get('baseline_efficiency', 0):.3f}")
                 print(f"Cognitive Load: {scenario_result['metrics'].get('cognitive_load', 0):.3f}")
                 print(f"Burnout Risk: {scenario_result['metrics'].get('burnout_risk', 0):.3f}")
                 print(f"Intervention Effectiveness: {scenario_result['metrics'].get('intervention_effectiveness', {})}")
@@ -136,7 +154,6 @@ class ScenarioManager:
 
         return pd.DataFrame(results)
 
-
     def _apply_interventions(self, interventions: Dict):
         """Apply intervention strategies to the simulator"""
         if 'protected_time_blocks' in interventions:
@@ -154,29 +171,31 @@ class ScenarioManager:
             return
 
         for block in blocks:
-            if not block:  # Skip None blocks
+            if not block:
                 continue
 
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
             block_hours = end_hour - start_hour
 
-            # Calculate the effectiveness based on time of day
-            # Morning blocks (8-12) are most effective for reducing interruptions
-            time_of_day_factor = 1.2 if 8 <= start_hour <= 12 else 1.0
+            # Time of day effectiveness
+            if 8 <= start_hour <= 11:
+                time_factor = 1.2  # Most effective in morning
+            elif 11 < start_hour <= 14:
+                time_factor = 1.0  # Moderate effectiveness mid-day
+            else:
+                time_factor = 0.8  # Less effective in afternoon
 
-            # Longer blocks are slightly less effective per hour
+            # Duration factor (longer blocks have diminishing returns)
             duration_factor = 1.0 if block_hours <= 3 else 0.9
 
-            reduction_factor = block.get('reduction_factor', 0.5) * time_of_day_factor * duration_factor
+            # Calculate final reduction factor
+            reduction_factor = block.get('reduction_factor', 0.5) * time_factor * duration_factor
 
-            # Only modify nursing questions and floor consults during protected time
-            protected_interruptions = ['nursing_question']
-            for key in protected_interruptions:
-                if key in self.simulator.interruption_scales:
-                    self.simulator.interruption_scales[key] *= reduction_factor
+            # Only modify nursing questions
+            if 'nursing_question' in self.simulator.interruption_scales:
+                self.simulator.interruption_scales['nursing_question'] *= reduction_factor
 
-            # Log the changes
             print(f"Protected time block: {start_hour}:00 - {end_hour}:00")
             print(f"Reduction factor: {reduction_factor:.2f}")
             print("Updated interruption scales:", self.simulator.interruption_scales)
@@ -196,83 +215,14 @@ class ScenarioManager:
             for key in self.simulator.admission_times:
                 self.simulator.admission_times[key] *= factor
 
-    def _calculate_scenario_metrics(self, scenario: ScenarioConfig) -> Dict:
-        """Calculate comprehensive metrics for scenario analysis"""
-        # Calculate base efficiency impact from protected time blocks
-        protected_time_impact = self._calculate_protected_time_impact(scenario.interventions)
+    def _calculate_intervention_metrics(self, scenario: ScenarioConfig) -> Dict:
+        """Calculate comprehensive metrics for the scenario"""
+        if not scenario.interventions or 'protected_time_blocks' not in scenario.interventions:
+            return {}
 
-        # Calculate base efficiency without impact
-        base_efficiency = self.simulator.simulate_provider_efficiency(
-            sum(self.simulator.interruption_scales.values()),
-            scenario.base_config.get('providers', 1),
-            scenario.base_config.get('workload', 0.0),
-            scenario.base_config.get('critical_events_per_day', 0),
-            scenario.base_config.get('admissions', 0),
-            scenario.base_config.get('adc', 0)
-        )
-
-        # Calculate base cognitive load without impact
-        base_cognitive_load = self.simulator.calculate_cognitive_load(
-            sum(self.simulator.interruption_scales.values()),
-            scenario.base_config.get('critical_events_per_day', 0),
-            scenario.base_config.get('admissions', 0),
-            scenario.base_config.get('workload', 0.0)
-        )
-
-        # Calculate base burnout risk without impact
-        base_burnout_risk = self.simulator.calculate_burnout_risk(
-            scenario.base_config.get('workload', 0.0),
-            sum(self.simulator.interruption_scales.values()),
-            scenario.base_config.get('critical_events_per_day', 0)
-        )
-
-        # Apply protected time impacts
-        base_metrics = {
-            'efficiency': min(1.0, base_efficiency * (1 + protected_time_impact['efficiency_boost'])),
-            'cognitive_load': max(0.0, min(1.0, base_cognitive_load * (1 - protected_time_impact['cognitive_reduction']))),
-            'burnout_risk': max(0.0, min(1.0, base_burnout_risk * (1 - protected_time_impact['burnout_reduction'])))
-        }
-
-        # Calculate intervention effectiveness
-        if scenario.interventions:
-            start_hour = scenario.interventions.get('protected_time_blocks', [{}])[0].get('start_hour', 0)
-            block_hours = scenario.interventions.get('protected_time_blocks', [{}])[0].get('end_hour', 0) - start_hour
-
-            # Calculate effectiveness based on time of day
-            if 8 <= start_hour <= 11:
-                time_effectiveness = 0.8  # Most effective in morning
-            elif 11 < start_hour <= 14:
-                time_effectiveness = 0.6  # Moderately effective mid-day
-            else:
-                time_effectiveness = 0.4  # Less effective in afternoon
-
-            # Apply block duration factor
-            duration_factor = 1.0 if block_hours <= 3 else (3 / block_hours) ** 0.5
-
-            intervention_effectiveness = {
-                'protected_time': time_effectiveness * duration_factor,
-                'staff_distribution': 0.0,  # Not implemented yet
-                'task_bundling': 0.0  # Not implemented yet
-            }
-
-            base_metrics['intervention_effectiveness'] = intervention_effectiveness
-
-        return base_metrics
-
-    def _calculate_protected_time_impact(self, interventions: Dict) -> Dict:
-        """Calculate the impact of protected time blocks based on time of day"""
-        impact = {
-            'efficiency_boost': 0.0,
-            'cognitive_reduction': 0.0,
-            'burnout_reduction': 0.0
-        }
-
-        if not interventions or 'protected_time_blocks' not in interventions:
-            return impact
-
-        blocks = interventions['protected_time_blocks']
-        if not blocks:
-            return impact
+        blocks = scenario.interventions['protected_time_blocks']
+        total_impact = 0.0
+        protected_time_effectiveness = 0.0
 
         for block in blocks:
             if not block:
@@ -282,125 +232,63 @@ class ScenarioManager:
             end_hour = block.get('end_hour', 0)
             block_hours = end_hour - start_hour
 
-            # Calculate time-of-day impact factors
-            if 8 <= start_hour <= 11:  # Early morning (optimal)
-                time_factor = 1.2
-                cognitive_factor = 0.25
-                burnout_factor = 0.3
-            elif 11 < start_hour <= 14:  # Mid-day (moderate)
-                time_factor = 1.0
-                cognitive_factor = 0.2
-                burnout_factor = 0.25
-            else:  # Afternoon (less effective)
-                time_factor = 0.8
-                cognitive_factor = 0.15
-                burnout_factor = 0.2
+            # Calculate time-of-day effectiveness
+            if 8 <= start_hour <= 11:
+                time_effectiveness = 0.8
+            elif 11 < start_hour <= 14:
+                time_effectiveness = 0.6
+            else:
+                time_effectiveness = 0.4
 
-            # Scale impact based on proportion of interrupted activities being protected
-            # Only nursing questions and floor consults are protected
-            protected_activity_ratio = 0.3  # Estimate: 30% of interruptions are nursing questions and consults
+            # Calculate block effectiveness
+            block_effectiveness = time_effectiveness * (1.0 if block_hours <= 3 else 0.9)
+            protected_time_effectiveness = max(protected_time_effectiveness, block_effectiveness)
 
-            # Calculate impacts with scaled effectiveness
-            efficiency_impact = min(0.3, block_hours * 0.05 * time_factor) * protected_activity_ratio
-            cognitive_impact = min(0.25, block_hours * cognitive_factor) * protected_activity_ratio
-            burnout_impact = min(0.3, block_hours * burnout_factor) * protected_activity_ratio
+            # Calculate impact based on protected activities ratio
+            protected_ratio = 0.3  # Estimate: 30% of interruptions are nursing questions and consults
+            impact = block_effectiveness * protected_ratio
+            total_impact = max(total_impact, impact)
 
-            # Update impact values
-            impact['efficiency_boost'] = max(impact['efficiency_boost'], efficiency_impact)
-            impact['cognitive_reduction'] = max(impact['cognitive_reduction'], cognitive_impact)
-            impact['burnout_reduction'] = max(impact['burnout_reduction'], burnout_impact)
-
-            # Log the impact calculations
-            print(f"\nProtected time impact calculations for block {start_hour}:00 - {end_hour}:00")
-            print(f"Time factor: {time_factor:.2f}")
-            print(f"Efficiency impact: {efficiency_impact:.3f}")
-            print(f"Cognitive impact: {cognitive_impact:.3f}")
-            print(f"Burnout impact: {burnout_impact:.3f}")
-
-        return impact
-
-    def _calculate_intervention_metrics(self, scenario: ScenarioConfig) -> Dict:
-        """Calculate metrics specific to interventions"""
-        metrics = {
+        return {
             'intervention_effectiveness': {
-                'protected_time': 0.0,
+                'protected_time': protected_time_effectiveness,
                 'staff_distribution': 0.0,
                 'task_bundling': 0.0
-            }
+            },
+            'total_impact': total_impact
         }
 
-        if scenario.interventions.get('protected_time_blocks'):
-            blocks = scenario.interventions['protected_time_blocks']
-            protected_time_effectiveness = 0.0
+    def _calculate_time_distribution(self, scenario: ScenarioConfig, baseline_metrics: Dict) -> Dict:
+        """Calculate time distribution based on interventions and baseline metrics"""
+        protected_ratio = 0.3  # Ratio of interruptions that are nursing questions and consults
 
-            for block in blocks:
-                if block is None:
-                    continue
-
-                start_hour = block.get('start_hour', 0)
-                end_hour = block.get('end_hour', 0)
-                block_hours = end_hour - start_hour
-
-                # Calculate base effectiveness
-                base_effectiveness = min(0.8, block_hours * 0.1)
-
-                # Time of day factors
-                if 8 <= start_hour <= 11:  # Early morning is most effective
-                    time_factor = 1.2
-                elif 11 < start_hour <= 14:  # Mid-day is moderately effective
-                    time_factor = 1.0
-                else:  # Afternoon is less effective
-                    time_factor = 0.8
-
-                # Duration factors - longer blocks are less efficient per hour
-                duration_factor = 1.0 if block_hours <= 3 else 0.9
-
-                block_effectiveness = base_effectiveness * time_factor * duration_factor
-                protected_time_effectiveness = max(protected_time_effectiveness, block_effectiveness)
-
-            metrics['intervention_effectiveness']['protected_time'] = protected_time_effectiveness
-
-        return metrics
-
-    def _calculate_risk_assessment(self, scenario: ScenarioConfig, metrics: Dict) -> Dict:
-        """Calculate risk assessment based on scenario configuration and metrics"""
-        base_risk = 0.5
+        # Start with base distribution
+        distribution = {
+            'direct_care_time': 40,
+            'interruption_time': 30,
+            'critical_time': 20,
+            'admin_time': 10
+        }
 
         if 'protected_time_blocks' in scenario.interventions:
             blocks = scenario.interventions['protected_time_blocks']
-            total_impact = 0.0
+            if blocks:
+                total_protected_hours = sum(
+                    (block['end_hour'] - block['start_hour'])
+                    for block in blocks if block is not None
+                )
 
-            for block in blocks:
-                if block is None:
-                    continue
+                # Calculate reduction in protected interruptions
+                protected_reduction = min(
+                    total_protected_hours * 2 * protected_ratio,
+                    distribution['interruption_time'] * protected_ratio
+                )
 
-                start_hour = block.get('start_hour', 0)
-                end_hour = block.get('end_hour', 0)
-                block_hours = end_hour - start_hour
+                # Update time distribution
+                distribution['interruption_time'] -= protected_reduction
+                distribution['direct_care_time'] += protected_reduction
 
-                # Calculate time-of-day impact on risk
-                if 8 <= start_hour <= 11:
-                    time_impact = 0.15  # Early morning has highest positive impact
-                elif 11 < start_hour <= 14:
-                    time_impact = 0.10  # Mid-day has moderate impact
-                else:
-                    time_impact = 0.05  # Afternoon has least impact
-
-                total_impact += time_impact * (1.0 if block_hours <= 3 else 0.9)
-
-            workflow_disruption = max(0.2, base_risk - total_impact)
-            implementation_risk = min(0.8, base_risk + (total_impact * 0.5))
-        else:
-            workflow_disruption = base_risk
-            implementation_risk = base_risk
-
-        return {
-            'workflow_disruption': workflow_disruption,
-            'provider_burnout': max(0.2, metrics['burnout_risk'] - total_impact),
-            'patient_care_impact': min(0.8, (1 - metrics['efficiency']) + 0.2),
-            'resource_utilization': max(0.3, base_risk - (total_impact * 0.5)),
-            'implementation_risk': implementation_risk
-        }
+        return {'time_distribution': distribution}
 
     def export_scenario_analysis(self, scenario_names: List[str], format: str = 'csv') -> pd.DataFrame:
         """Export scenario analysis results"""
