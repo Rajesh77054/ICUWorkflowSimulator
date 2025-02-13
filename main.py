@@ -624,7 +624,7 @@ def main():
                                     x=1
                                 )
                             )
-                            st.plotly_chart(metrics_fig, use_container_width=True)
+                            st.plotly_chart(metrics_fig, use_container_width=True, key="metrics_comparison")
 
                             # Time Allocation Comparison
                             st.markdown("### Time Allocation Comparison")
@@ -647,7 +647,7 @@ def main():
                                         hole=.4
                                     )])
                                     fig.update_layout(title="Time Distribution")
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"time_allocation_{scenario}")
 
                             # Intervention Effectiveness
                             st.markdown("### Intervention Effectiveness")
@@ -685,7 +685,7 @@ def main():
                                     range=[0, 1]
                                 )
                             )
-                            st.plotly_chart(effectiveness_fig, use_container_width=True)
+                            st.plotly_chart(effectiveness_fig, use_container_width=True, key="intervention_effectiveness")
 
                             # Risk Assessment Radar Chart
                             st.markdown("### Risk Assessment")
@@ -730,7 +730,8 @@ def main():
                                 ),
                                 showlegend=True
                             )
-                            st.plotly_chart(risk_fig, use_container_width=True)
+                            st.plotly_chart(risk_fig, use_container_width=True, key="risk_assessment")
+
                 else:
                     st.info("No scenarios available. Create scenarios to compare them.")
 
