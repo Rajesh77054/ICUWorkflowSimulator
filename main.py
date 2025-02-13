@@ -15,7 +15,6 @@ from models import save_scenario, save_scenario_result, get_scenarios, get_scena
 import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor
 
-
 def main():
     st.set_page_config(
         page_title="ICU Workflow Dynamics Model",
@@ -726,6 +725,7 @@ def main():
                         st.session_state.model_trained = True
 
                 predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
+                trend_predictions = st.session_state.predictor.predict_next_week(current_features)
 
                 st.markdown("#### Model Insights")
                 st.caption("Predictions based on current workflow patterns")
@@ -745,6 +745,14 @@ def main():
                         f"{predictions['predicted_burnout']:.0%}",
                         help="Projected burnout risk based on current patterns"
                     )
+
+                # Display trend predictions
+                st.markdown("#### Prediction Trends")
+                st.caption("Projected metrics for the next 7 days")
+                st.plotly_chart(
+                    create_prediction_trend_chart(trend_predictions),
+                    use_container_width=True
+                )
 
             except Exception as e:
                 st.error(f"Error generating predictions: {str(e)}")
