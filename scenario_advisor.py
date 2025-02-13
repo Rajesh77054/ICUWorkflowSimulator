@@ -28,10 +28,18 @@ class ScenarioAdvisor:
 
                 # Calibrate and normalize impact values
                 raw_impact = rec.get('expected_impact', {})
+                
+                # Validate and convert raw values to float
+                def validate_float(value, default=0.0):
+                    try:
+                        return float(value) if value is not None else default
+                    except (ValueError, TypeError):
+                        return default
+                
                 calibrated_impact = {
-                    'efficiency': min(max(raw_impact.get('efficiency', 0), 0), 50),  # Cap at +50%
-                    'cognitive_load': max(min(raw_impact.get('cognitive_load', 0), 0), -30),  # Cap at -30%
-                    'burnout_risk': max(min(raw_impact.get('burnout_risk', 0), 0), -35)   # Cap at -35%
+                    'efficiency': min(max(validate_float(raw_impact.get('efficiency')), 0), 50),  # Cap at +50%
+                    'cognitive_load': max(min(validate_float(raw_impact.get('cognitive_load')), 0), -30),  # Cap at -30%
+                    'burnout_risk': max(min(validate_float(raw_impact.get('burnout_risk')), 0), -35)   # Cap at -35%
                 }
                 
                 formatted_rec = {
@@ -60,14 +68,27 @@ class ScenarioAdvisor:
             "status": "success",
             "recommendations": formatted_recommendations,
             # Calculate average impact across all recommendations
-            "impact_analysis": {
-                "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
-                                for r in formatted_recommendations), 50),  # Cap total at 50%
-                "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
-                                    for r in formatted_recommendations), -30),  # Cap total at -30%
-                "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
-                                  for r in formatted_recommendations), -35)  # Cap total at -35%
-            },
+            total_recs = len(formatted_recommendations)
+            if total_recs > 0:
+                impact_analysis = {
+                    "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
+                                    for r in formatted_recommendations) / total_recs, 50),  # Average capped at 50%
+                    "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
+                                        for r in formatted_recommendations) / total_recs, -30),  # Average capped at -30%
+                    "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
+                                      for r in formatted_recommendations) / total_recs, -35)  # Average capped at -35%
+                }
+            else:
+                impact_analysis = {
+                    "efficiency": 0,
+                    "cognitive_load": 0,
+                    "burnout_risk": 0
+                }
+            
+            return {
+                "status": "success",
+                "recommendations": formatted_recommendations,
+                "impact_analysis": impact_analysis,
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)
         }
