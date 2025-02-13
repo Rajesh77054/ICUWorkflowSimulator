@@ -148,17 +148,25 @@ class ScenarioManager:
 
     def _apply_protected_time_blocks(self, blocks: List[Dict]):
         """Apply protected time blocks to reduce interruptions"""
+        total_protected_hours = 0
         for block in blocks:
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
-            reduction_factor = block.get('reduction_factor', 0.5)
+            block_hours = end_hour - start_hour
+            total_protected_hours += block_hours
+
+            # Calculate the effectiveness based on time of day
+            # Morning blocks (8-12) are most effective for reducing interruptions
+            time_of_day_factor = 1.2 if 8 <= start_hour <= 12 else 1.0
+
+            # Longer blocks are slightly less effective per hour
+            duration_factor = 1.0 if block_hours <= 3 else 0.9
+
+            reduction_factor = block.get('reduction_factor', 0.5) * time_of_day_factor * duration_factor
 
             # Adjust interruption frequencies during protected time
             for key in self.simulator.interruption_scales:
-                self.simulator.interruption_scales[key] *= (
-                    reduction_factor if start_hour <= datetime.now().hour < end_hour
-                    else 1.0
-                )
+                self.simulator.interruption_scales[key] *= reduction_factor
 
     def _apply_staff_distribution(self, distribution: Dict):
         """Apply staff distribution patterns"""
@@ -202,7 +210,16 @@ class ScenarioManager:
         # Calculate intervention-specific metrics
         if scenario.interventions:
             intervention_metrics = self._calculate_intervention_metrics(scenario)
+
+            # Calculate time distribution based on interventions
+            time_distribution = self._calculate_time_distribution(scenario)
+
             base_metrics.update(intervention_metrics)
+            base_metrics.update(time_distribution)
+
+            # Calculate risk assessment
+            risk_assessment = self._calculate_risk_assessment(scenario, base_metrics)
+            base_metrics['risk_assessment'] = risk_assessment
 
         return base_metrics
 
@@ -245,6 +262,59 @@ class ScenarioManager:
         """Calculate efficiency gains from task bundling"""
         # Implementation for task bundling efficiency calculation
         return bundling.get('efficiency_factor', 1.0)
+
+    def _calculate_time_distribution(self, scenario: ScenarioConfig) -> Dict:
+        """Calculate time distribution based on interventions"""
+        # Start with base distribution
+        distribution = {
+            'direct_care_time': 30,  # Base percentage
+            'interruption_time': 20,
+            'critical_time': 20,
+            'admin_time': 30
+        }
+
+        if 'protected_time_blocks' in scenario.interventions:
+            blocks = scenario.interventions['protected_time_blocks']
+            total_protected_hours = sum(
+                block['end_hour'] - block['start_hour']
+                for block in blocks if block is not None
+            )
+
+            # Adjust distribution based on protected time
+            interruption_reduction = min(total_protected_hours * 2, 10)  # Max 10% reduction
+            distribution['interruption_time'] = max(10, distribution['interruption_time'] - interruption_reduction)
+            distribution['direct_care_time'] += interruption_reduction
+
+        return distribution
+
+    def _calculate_risk_assessment(self, scenario: ScenarioConfig, metrics: Dict) -> Dict:
+        """Calculate risk assessment based on scenario configuration and metrics"""
+        base_risk = 0.5  # Default risk level
+
+        # Calculate workflow disruption risk
+        if 'protected_time_blocks' in scenario.interventions:
+            blocks = scenario.interventions['protected_time_blocks']
+            total_protected_hours = sum(
+                block['end_hour'] - block['start_hour']
+                for block in blocks if block is not None
+            )
+
+            # More protected time reduces workflow disruption risk
+            workflow_disruption = max(0.2, base_risk - (total_protected_hours * 0.05))
+
+            # But very long protected blocks might increase other risks
+            implementation_risk = min(0.8, base_risk + (total_protected_hours * 0.03))
+        else:
+            workflow_disruption = base_risk
+            implementation_risk = base_risk
+
+        return {
+            'workflow_disruption': workflow_disruption,
+            'provider_burnout': max(0.2, metrics['burnout_risk'] - 0.1),
+            'patient_care_impact': min(0.8, (1 - metrics['efficiency']) + 0.2),
+            'resource_utilization': base_risk,
+            'implementation_risk': implementation_risk
+        }
 
     def export_scenario_analysis(self, scenario_names: List[str], format: str = 'csv') -> pd.DataFrame:
         """Export scenario analysis results"""
