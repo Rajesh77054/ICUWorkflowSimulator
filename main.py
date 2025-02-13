@@ -6,15 +6,14 @@ from styles import apply_custom_styles, section_header
 from utils import (calculate_interruptions, calculate_workload,
                   create_interruption_chart, create_time_allocation_pie,
                   create_workload_timeline, create_burnout_gauge,
-                  create_burnout_radar_chart, create_prediction_trend_chart,
-                  generate_report_data, format_recommendations, create_feature_importance_chart) #Added import
+                  create_burnout_radar_chart, create_prediction_trend_chart)
 from simulator import WorkflowSimulator
 from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
 from ml_predictor import MLPredictor
 from scenario_manager import ScenarioManager
 from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
 import plotly.graph_objects as go
-from scenario_advisor import ScenarioAdvisor # Added import
+from scenario_advisor import ScenarioAdvisor
 
 
 def main():
@@ -36,7 +35,7 @@ def main():
         st.session_state.predictor = MLPredictor()
         st.session_state.model_trained = False
 
-    if 'scenario_advisor' not in st.session_state: # Added initialization
+    if 'scenario_advisor' not in st.session_state:
         st.session_state.scenario_advisor = ScenarioAdvisor()
 
     # Initialize session state variables for scenario management
@@ -729,7 +728,9 @@ def main():
                 predictions = st.session_state.predictor.predict(current_features.reshape(1, -1))
 
                 st.markdown("#### Model Insights")
-                insights_cols = st.columns(2)  # Changed to 2 columns instead of 3
+                st.caption("Predictions based on current workflow patterns")
+
+                insights_cols = st.columns(2)  
 
                 with insights_cols[0]:
                     st.metric(
@@ -745,26 +746,6 @@ def main():
                         help="Projected burnout risk based on current patterns"
                     )
 
-                # Create visualization for predictions
-                feature_names = [
-                    'Nursing Questions', 'Exam Callbacks', 'Peer Interrupts',
-                    'Transfer Calls', 'Providers', 'Admissions', 'Consults',
-                    'Critical Events'
-                ]
-
-                importance_dict = dict(zip(
-                    feature_names,
-                    st.session_state.predictor.get_feature_importance()
-                ))
-
-                st.markdown("#### Feature Impact Analysis")
-                st.caption("Relative importance of different factors in predicting outcomes")
-
-                st.plotly_chart(
-                    create_feature_importance_chart(importance_dict),
-                    use_container_width=True
-                )
-
             except Exception as e:
                 st.error(f"Error generating predictions: {str(e)}")
 
@@ -772,7 +753,7 @@ def main():
             with st.expander("📊 Export Reports"):
                 report_type = st.selectbox(
                     "Select Report Type",
-                    ["Current State Analysis", "Predictive Analysis"]  # Removed "Historical Trends"
+                    ["Current State Analysis", "Predictive Analysis"]  
                 )
 
                 if st.button("Generate Report"):
