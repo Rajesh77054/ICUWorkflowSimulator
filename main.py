@@ -9,7 +9,7 @@ from utils import (calculate_interruptions, calculate_workload,
                   create_burnout_radar_chart, create_prediction_trend_chart,
                   generate_report_data, format_recommendations)
 from simulator import WorkflowSimulator
-from models import get_db, save_workflow_record, get_historical_records
+from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
 from ml_predictor import MLPredictor
 from scenario_manager import ScenarioManager
 from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
@@ -38,6 +38,16 @@ def main():
 
     if 'scenario_advisor' not in st.session_state: # Added initialization
         st.session_state.scenario_advisor = ScenarioAdvisor()
+
+    # Initialize session state variables for scenario management
+    if 'confirm_delete' not in st.session_state:
+        st.session_state.confirm_delete = False
+        st.session_state.delete_scenario_id = None
+
+    if 'confirm_overwrite' not in st.session_state:
+        st.session_state.confirm_overwrite = False
+        st.session_state.overwrite_scenario_name = None
+        st.session_state.overwrite_data = None
 
     # User Type Selection
     user_type = st.radio(
@@ -514,40 +524,117 @@ def main():
                                 st.error(f"Unable to get AI recommendations: {advice['message']}")
 
                 if st.button("Save Scenario"):
-                    try:
-                        # Create scenario configuration
-                        base_config = {
-                            'providers': providers,
-                            'adc': adc,
-                            'consults': consults,
-                            'critical_events': critical_events,
-                            'workload': workload['combined']
-                        }
+                    if not scenario_name:
+                        st.error("Please provide a scenario name")
+                    else:
+                        try:
+                            # Create scenario configuration
+                            base_config = {
+                                'providers': providers,
+                                'adc': adc,
+                                'consults': consults,
+                                'critical_events': critical_events,
+                                'workload': workload['combined']
+                            }
 
-                        interventions = {
-                            'protected_time_blocks': [{
-                                'start_hour': protected_start,
-                                'end_hour': protected_start + protected_duration,
-                                'reduction_factor': 0.5
-                            }] if protected_time else None,
-                            'staff_distribution': {
-                                'physician_ratio': physician_ratio
-                            } if staff_distribution else None,
-                            'task_bundling': {
-                                'efficiency_factor': 1 - bundling_efficiency
-                            } if task_bundling else None
-                        }
+                            interventions = {
+                                'protected_time_blocks': [{
+                                    'start_hour': protected_start,
+                                    'end_hour': protected_start + protected_duration,
+                                    'reduction_factor': 0.5
+                                }] if protected_time else None,
+                                'staff_distribution': {
+                                    'physician_ratio': physician_ratio
+                                } if staff_distribution else None,
+                                'task_bundling': {
+                                    'efficiency_factor': 1 - bundling_efficiency
+                                } if task_bundling else None
+                            }
 
-                        # Save scenario to database
-                        db = next(get_db())
-                        scenario = save_scenario(
-                            db, scenario_name, scenario_description,
-                            base_config, interventions
-                        )
-                        st.success(f"Scenario '{scenario_name}' saved successfully!")
+                            # Save scenario to database
+                            db = next(get_db())
+                            scenario_exists = check_scenario_exists(db, scenario_name)
 
-                    except Exception as e:
-                        st.error(f"Error saving scenario: {str(e)}")
+                            if scenario_exists and not st.session_state.confirm_overwrite:
+                                st.session_state.confirm_overwrite = True
+                                st.session_state.overwrite_scenario_name = scenario_name
+                                st.session_state.overwrite_data = {
+                                    'description': scenario_description,
+                                    'base_config': base_config,
+                                    'interventions': interventions
+                                }
+                                st.warning(f"A scenario named '{scenario_name}' already exists. Do you want to overwrite it?")
+                                if st.button("Yes, Overwrite", key="btn_overwrite"):
+                                    scenario = save_scenario(
+                                        db, scenario_name, scenario_description,
+                                        base_config, interventions
+                                    )
+                                    st.success(f"Scenario '{scenario_name}' saved successfully!")
+                                    st.session_state.confirm_overwrite = False
+                                    st.session_state.overwrite_scenario_name = None
+                                    st.session_state.overwrite_data = None
+                                if st.button("No, Choose Different Name", key="btn_cancel_overwrite"):
+                                    st.session_state.confirm_overwrite = False
+                                    st.session_state.overwrite_scenario_name = None
+                                    st.session_state.overwrite_data = None
+                            elif not scenario_exists or (scenario_exists and st.session_state.confirm_overwrite):
+                                #Save the scenario
+                                scenario = save_scenario(
+                                    db, scenario_name, scenario_description,
+                                    base_config, interventions
+                                )
+                                st.success(f"Scenario '{scenario_name}' saved successfully!")
+
+                                # Reset overwrite state
+                                st.session_state.confirm_overwrite = False
+                                st.session_state.overwrite_scenario_name = None
+                                st.session_state.overwrite_data = None
+
+                        except Exception as e:
+                            st.error(f"Error saving scenario: {str(e)}")
+
+                # Display existing scenarios with delete option
+                st.markdown("#### Existing Scenarios")
+                db = next(get_db())
+                scenarios = get_scenarios(db)
+
+                if scenarios:
+                    for scenario in scenarios:
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.markdown(f"**{scenario.name}**")
+                            st.caption(scenario.description)
+                        with col2:
+                            if st.button("Delete", key=f"delete_{scenario.id}"):
+                                st.session_state.confirm_delete = True
+                                st.session_state.delete_scenario_id = scenario.id
+
+                    # Handle delete confirmation
+                    if st.session_state.confirm_delete:
+                        scenario_to_delete = next(s for s in scenarios
+                                                   if s.id == st.session_state.delete_scenario_id)
+                        st.warning(f"Are you sure you want to delete scenario '{scenario_to_delete.name}'?")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("Yes, Delete"):
+                                try:
+                                    if delete_scenario(db, st.session_state.delete_scenario_id):
+                                        st.success(f"Scenario '{scenario_to_delete.name}' deleted successfully!")
+                                    else:
+                                        st.error("Error deleting scenario")
+                                    # Reset delete confirmation state
+                                    st.session_state.confirm_delete = False
+                                    st.session_state.delete_scenario_id = None
+                                    st.experimental_rerun()
+                                except Exception as e:
+                                    st.error(f"Error deleting scenario: {str(e)}")
+                        with col2:
+                            if st.button("No, Cancel"):
+                                st.session_state.confirm_delete = False
+                                st.session_state.delete_scenario_id = None
+                                st.experimental_rerun()
+                else:
+                    st.info("No scenarios available.")
 
             with scenario_tab2:
                 st.markdown("#### Compare Scenarios")

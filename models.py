@@ -191,3 +191,22 @@ def get_scenario_results(db, scenario_id):
     return db.query(ScenarioResult).filter(
         ScenarioResult.scenario_id == scenario_id
     ).order_by(ScenarioResult.timestamp.desc()).all()
+
+def delete_scenario(db, scenario_id):
+    """Delete a scenario and its associated results"""
+    # First delete associated results
+    db.query(ScenarioResult).filter(
+        ScenarioResult.scenario_id == scenario_id
+    ).delete(synchronize_session=False)
+
+    # Then delete the scenario
+    scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
+    if scenario:
+        db.delete(scenario)
+        db.commit()
+        return True
+    return False
+
+def check_scenario_exists(db, name):
+    """Check if a scenario with the given name already exists"""
+    return db.query(Scenario).filter(Scenario.name == name).first() is not None
