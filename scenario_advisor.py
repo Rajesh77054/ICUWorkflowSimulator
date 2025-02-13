@@ -30,8 +30,8 @@ class ScenarioAdvisor:
                 raw_impact = rec.get('expected_impact', {})
                 calibrated_impact = {
                     'efficiency': min(max(raw_impact.get('efficiency', 0), -25), 25),  # Cap at ±25%
-                    'cognitive_load': -min(max(raw_impact.get('cognitive_load', 0), 0), 30),  # Negative values, max 30% reduction
-                    'burnout_risk': -min(max(raw_impact.get('burnout_risk', 0), 0), 35)  # Negative values, max 35% reduction
+                    'cognitive_load': min(max(raw_impact.get('cognitive_load', 0), -30), 0),  # Negative values, max 30% reduction
+                    'burnout_risk': min(max(raw_impact.get('burnout_risk', 0), -35), 0)  # Negative values, max 35% reduction
                 }
                 
                 formatted_rec = {

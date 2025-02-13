@@ -658,12 +658,20 @@ def main():
                                     with col2:
                                         # Quick Apply button with improved visibility
                                         if rec.get('config'):
-                                            if st.button("🚀 Quick Apply", key=f"apply_{i}", type="primary"):
+                                            st.markdown("""
+                                                <style>
+                                                div.stButton > button {
+                                                    width: 100%;
+                                                    margin-top: 20px;
+                                                }
+                                                </style>
+                                            """, unsafe_allow_html=True)
+                                            
+                                            if st.button("🚀 Quick Apply", key=f"quick_apply_{i}", type="primary"):
                                                 config = rec['config']
-
                                                 StateManager.update_from_config(config)
                                                 st.success("Configuration applied!")
-                                                time.sleep(0.5)  # Brief pause to ensure state is updated
+                                                time.sleep(0.5)
                                                 st.rerun()
 
                                     st.markdown("---")
