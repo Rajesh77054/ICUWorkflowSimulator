@@ -740,22 +740,22 @@ def main():
 
                 with insights_cols[0]:
                     st.metric(
-                        "Predicted Efficiency",
-                        f"{predictions['efficiency']:.0%}",
-                        help="Projected workflow efficiency based on current patterns"
+                        "Predicted Workload",
+                        f"{predictions['predicted_workload']:.0%}",
+                        help="Projected workload based on current patterns"
                     )
 
                 with insights_cols[1]:
                     st.metric(
-                        "Predicted Cognitive Load",
-                        f"{predictions['cognitive_load']:.0f}%",
-                        help="Projected cognitive load based on current patterns"
+                        "Predicted Provider Load",
+                        f"{predictions['predicted_provider_load']:.0%}",
+                        help="Projected provider utilization based on current patterns"
                     )
 
                 with insights_cols[2]:
                     st.metric(
                         "Predicted Burnout Risk",
-                        f"{predictions['burnout_risk']:.0%}",
+                        f"{predictions['predicted_burnout']:.0%}",
                         help="Projected burnout risk based on current patterns"
                     )
 
@@ -766,7 +766,7 @@ def main():
             with st.expander("📊 Export Reports"):
                 report_type = st.selectbox(
                     "Select Report Type",
-                    ["Current State Analysis", "Predictive Analysis"] #Removed "Historical Trends"
+                    ["Current State Analysis", "Predictive Analysis"]  # Removed "Historical Trends"
                 )
 
                 if st.button("Generate Report"):
