@@ -96,47 +96,27 @@ class ScenarioManager:
             self._apply_task_bundling(interventions['task_bundling'])
     
     def _apply_protected_time_blocks(self, blocks: List[Dict]):
-        """Apply protected time blocks to reduce specific interruptions"""
+        """Apply protected time blocks to reduce interruptions"""
         for block in blocks:
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
             reduction_factor = block.get('reduction_factor', 0.5)
             
-            # Only modify nursing questions and floor consults during protected time
-            protected_interruptions = ['nursing_question']
-            current_hour = datetime.now().hour
-            
+            # Adjust interruption frequencies during protected time
             for key in self.simulator.interruption_scales:
-                if key in protected_interruptions:
-                    self.simulator.interruption_scales[key] *= (
-                        reduction_factor if start_hour <= current_hour < end_hour
-                        else 1.0
-                    )
-            
-            # Adjust consult timing if in protected block
-            if hasattr(self.simulator, 'admission_times'):
-                if start_hour <= current_hour < end_hour:
-                    self.simulator.admission_times['consult'] *= (1 + (1 - reduction_factor))
+                self.simulator.interruption_scales[key] *= (
+                    reduction_factor if start_hour <= datetime.now().hour < end_hour
+                    else 1.0
+                )
     
     def _apply_staff_distribution(self, distribution: Dict):
-        """Apply staff distribution patterns with time-based adjustments"""
-        current_hour = datetime.now().hour
-        
-        # Handle additional physician coverage
-        if distribution.get('add_physician'):
-            start_hour = distribution.get('physician_start', 0)
-            end_hour = (start_hour + distribution.get('physician_duration', 0)) % 24
-            
-            if start_hour <= current_hour < end_hour:
-                self.simulator.provider_ratios['physician'] += 1
-        
-        # Handle additional APP coverage
-        if distribution.get('add_app'):
-            start_hour = distribution.get('app_start', 0)
-            end_hour = (start_hour + distribution.get('app_duration', 0)) % 24
-            
-            if start_hour <= current_hour < end_hour:
-                self.simulator.provider_ratios['app'] += 1
+        """Apply staff distribution patterns"""
+        # Adjust provider-specific parameters based on distribution
+        if 'physician_ratio' in distribution:
+            self.simulator.provider_ratios = {
+                'physician': distribution['physician_ratio'],
+                'app': 1 - distribution['physician_ratio']
+            }
     
     def _apply_task_bundling(self, bundling: Dict):
         """Apply task bundling strategies"""

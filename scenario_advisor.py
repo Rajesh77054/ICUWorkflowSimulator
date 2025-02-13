@@ -1,4 +1,3 @@
-
 from ai_assistant import AIAssistant
 from datetime import datetime
 import pandas as pd
@@ -20,108 +19,33 @@ class ScenarioAdvisor:
                 "recommendations": []
             }
 
-        # Format recommendations in natural language and include configuration
+        # Format recommendations in natural language
         formatted_recommendations = []
         for rec in recommendations.get("recommendations", []):
             if isinstance(rec, dict):
-                # Extract configuration for quick apply
-                config = self._extract_config_from_recommendation(rec)
-
-                # Calibrate and normalize impact values
-                raw_impact = rec.get('expected_impact', {})
-                
-                # Validate and convert raw values to float
-                def validate_float(value, default=0.0):
-                    try:
-                        return float(value) if value is not None else default
-                    except (ValueError, TypeError):
-                        return default
-                
-                calibrated_impact = {
-                    'efficiency': min(max(validate_float(raw_impact.get('efficiency')), 0), 50),  # Cap at +50%
-                    'cognitive_load': max(min(validate_float(raw_impact.get('cognitive_load')), 0), -30),  # Cap at -30%
-                    'burnout_risk': max(min(validate_float(raw_impact.get('burnout_risk')), 0), -35)   # Cap at -35%
-                }
-                
-                formatted_rec = {
-                    "title": rec.get('title', 'Recommendation'),
-                    "description": rec.get('description', ''),
-                    "risk_factors": rec.get('risk_factors', []),
-                    "config": config,  # Configuration for quick apply
-                    "impact": calibrated_impact
-                }
+                # Format structured recommendation
+                formatted_rec = f"**{rec.get('suggestion', '')}**\n\n"
+                formatted_rec += f"{rec.get('description', '')}\n\n"
+                if 'risk_factors' in rec:
+                    formatted_rec += "**Risk Factors:**\n"
+                    for risk in rec['risk_factors']:
+                        formatted_rec += f"- {risk}\n"
                 formatted_recommendations.append(formatted_rec)
             else:
-                # Handle plain text recommendations with default structure
-                formatted_recommendations.append({
-                    "title": "Recommendation",
-                    "description": str(rec),
-                    "risk_factors": [],
-                    "config": {},
-                    "impact": {
-                        'efficiency': 0,
-                        'cognitive_load': 0,
-                        'burnout_risk': 0
-                    }
-                })
+                # Handle plain text recommendations
+                formatted_recommendations.append(rec)
 
-        # Calculate average impact across all recommendations
-        total_recs = len(formatted_recommendations)
-        if total_recs > 0:
-            impact_analysis = {
-                "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
-                                for r in formatted_recommendations) / total_recs, 50),  # Average capped at 50%
-                "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
-                                    for r in formatted_recommendations) / total_recs, -30),  # Average capped at -30%
-                "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
-                                  for r in formatted_recommendations) / total_recs, -35)  # Average capped at -35%
-            }
-        else:
-            impact_analysis = {
-                "efficiency": 0,
-                "cognitive_load": 0,
-                "burnout_risk": 0
-            }
-        
         return {
             "status": "success",
             "recommendations": formatted_recommendations,
-            "impact_analysis": impact_analysis,
+            "impact_analysis": {
+                "efficiency": recommendations.get("impact", {}).get("efficiency", 0) / 100,
+                "cognitive_load": recommendations.get("impact", {}).get("cognitive_load", 0) / 100,
+                "burnout_risk": recommendations.get("impact", {}).get("burnout_risk", 0) / 100
+            },
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)
         }
-
-    def _extract_config_from_recommendation(self, recommendation):
-        """Extract configuration parameters from AI recommendation"""
-        config = {}
-        impact = recommendation.get('expected_impact', {})
-        
-        # Extract values directly from recommendation if available
-        if 'protected_time' in recommendation.get('config', {}):
-            pt_config = recommendation['config']['protected_time']
-            config['protected_time'] = {
-                'start_hour': pt_config.get('start_hour', 9),
-                'duration': pt_config.get('duration', 2),
-            }
-
-        if 'staff_distribution' in recommendation.get('config', {}):
-            staff_config = recommendation['config']['staff_distribution']
-            config['staff_distribution'] = {
-                'add_physician': staff_config.get('add_physician', False),
-                'physician_start': staff_config.get('physician_start', 8),
-                'physician_duration': staff_config.get('physician_duration', 4),
-                'add_app': staff_config.get('add_app', False),
-                'app_start': staff_config.get('app_start', 8),
-                'app_duration': staff_config.get('app_duration', 4)
-            }
-
-        if 'task_bundling' in recommendation.get('config', {}):
-            bundle_config = recommendation['config']['task_bundling']
-            config['task_bundling'] = {
-                'efficiency_factor': bundle_config.get('efficiency_factor', 0.2)
-            }
-
-        return config
 
     def analyze_intervention_strategy(self, scenario_name, intervention_config):
         """Analyze the potential impact of intervention strategies"""

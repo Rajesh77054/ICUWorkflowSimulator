@@ -15,9 +15,7 @@ from scenario_manager import ScenarioManager
 from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
 import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor # Added import
-import time
-from sqlalchemy.exc import OperationalError
-from state_manager import StateManager  # Add this import at the top
+
 
 def main():
     st.set_page_config(
@@ -26,8 +24,8 @@ def main():
         layout="wide"
     )
 
-    # Initialize state manager
-    StateManager.initialize_session_state()
+    apply_custom_styles()
+    st.title("ICU Workflow Dynamics Model")
 
     # Initialize simulator and other components in session state
     if 'simulator' not in st.session_state:
@@ -40,25 +38,6 @@ def main():
 
     if 'scenario_advisor' not in st.session_state: # Added initialization
         st.session_state.scenario_advisor = ScenarioAdvisor()
-
-    # Initialize intervention strategy session states
-    if 'protected_time' not in st.session_state:
-        st.session_state.protected_time = False
-        st.session_state.protected_start = 9
-        st.session_state.protected_duration = 2
-
-    if 'staff_distribution' not in st.session_state:
-        st.session_state.staff_distribution = False
-        st.session_state.add_physician = False
-        st.session_state.physician_start = 8
-        st.session_state.physician_duration = 4
-        st.session_state.add_app = False
-        st.session_state.app_start = 8
-        st.session_state.app_duration = 4
-
-    if 'task_bundling' not in st.session_state:
-        st.session_state.task_bundling = False
-        st.session_state.bundling_efficiency = 0.2
 
     # User Type Selection
     user_type = st.radio(
@@ -448,142 +427,18 @@ def main():
                 scenario_description = st.text_area("Description")
 
                 st.markdown("##### Intervention Strategies")
-                protected_time = st.checkbox(
-                    "Enable Protected Time Blocks",
-                    value=st.session_state.get('protected_time', False),
-                    key="protected_time_checkbox",
-                    help="Reduce interruptions during specific time blocks"
-                )
-
-                # Update session state and trigger UI refresh if needed
-                if protected_time != st.session_state.protected_time:
-                    st.session_state.protected_time = protected_time
-                    st.rerun()
-
+                protected_time = st.checkbox("Enable Protected Time Blocks")
                 if protected_time:
-                    protected_start = st.slider(
-                        "Protected Time Start (Hour)",
-                        0, 23,
-                        value=st.session_state.get('protected_start', 9),
-                        key="protected_start_slider",
-                        help="Start hour for protected time block"
-                    )
-                    protected_duration = st.slider(
-                        "Duration (Hours)",
-                        1, 8,
-                        value=st.session_state.get('protected_duration', 2),
-                        key="protected_duration_slider",
-                        help="Length of protected time block"
-                    )
+                    protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 9)
+                    protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
 
-                    # Update session state if values changed
-                    if (protected_start != st.session_state.protected_start or 
-                        protected_duration != st.session_state.protected_duration):
-                        st.session_state.protected_start = protected_start
-                        st.session_state.protected_duration = protected_duration
-
-                staff_distribution = st.checkbox(
-                    "Adjust Provider Staffing",
-                    value=st.session_state.get('staff_distribution', False),
-                    key="staff_distribution_checkbox",
-                    help="Modify staffing patterns"
-                )
-
-                if staff_distribution != st.session_state.staff_distribution:
-                    st.session_state.staff_distribution = staff_distribution
-                    st.rerun()
-
+                staff_distribution = st.checkbox("Optimize Staff Distribution")
                 if staff_distribution:
-                    st.markdown("##### Additional Provider Coverage")
+                    physician_ratio = st.slider("Physician/APP Ratio", 0.0, 1.0, 0.5)
 
-                    # Physician staffing
-                    add_physician = st.checkbox(
-                        "Add Extra Physician Coverage",
-                        value=st.session_state.get('add_physician', False),
-                        key="add_physician_checkbox",
-                        help="Add additional physician coverage"
-                    )
-
-                    if add_physician != st.session_state.add_physician:
-                        st.session_state.add_physician = add_physician
-                        st.rerun()
-
-                    if add_physician:
-                        physician_start = st.slider(
-                            "Extra Physician Start Hour",
-                            0, 23,
-                            value=st.session_state.get('physician_start', 8),
-                            key="physician_start_slider",
-                            help="Start hour for additional physician coverage"
-                        )
-                        physician_duration = st.slider(
-                            "Extra Physician Duration (Hours)",
-                            1, 12,
-                            value=st.session_state.get('physician_duration', 4),
-                            key="physician_duration_slider",
-                            help="Duration of additional physician coverage"
-                        )
-
-                        if (physician_start != st.session_state.physician_start or 
-                            physician_duration != st.session_state.physician_duration):
-                            st.session_state.physician_start = physician_start
-                            st.session_state.physician_duration = physician_duration
-
-                    # APP staffing
-                    add_app = st.checkbox(
-                        "Add Extra APP Coverage",
-                        value=st.session_state.get('add_app', False),
-                        key="add_app_checkbox",
-                        help="Add additional APP coverage"
-                    )
-
-                    if add_app != st.session_state.add_app:
-                        st.session_state.add_app = add_app
-                        st.rerun()
-
-                    if add_app:
-                        app_start = st.slider(
-                            "Extra APP Start Hour",
-                            0, 23,
-                            value=st.session_state.get('app_start', 8),
-                            key="app_start_slider",
-                            help="Start hour for additional APP coverage"
-                        )
-                        app_duration = st.slider(
-                            "Extra APP Duration (Hours)",
-                            1, 12,
-                            value=st.session_state.get('app_duration', 4),
-                            key="app_duration_slider",
-                            help="Duration of additional APP coverage"
-                        )
-
-                        if (app_start != st.session_state.app_start or 
-                            app_duration != st.session_state.app_duration):
-                            st.session_state.app_start = app_start
-                            st.session_state.app_duration = app_duration
-
-                task_bundling = st.checkbox(
-                    "Enable Task Bundling (Group Similar Tasks)",
-                    value=st.session_state.get('task_bundling', False),
-                    key="task_bundling_checkbox",
-                    help="Group similar tasks to improve efficiency"
-                )
-
-                if task_bundling != st.session_state.task_bundling:
-                    st.session_state.task_bundling = task_bundling
-                    st.rerun()
-
+                task_bundling = st.checkbox("Enable Task Bundling")
                 if task_bundling:
-                    bundling_efficiency = st.slider(
-                        "Time Savings from Bundling (0=None, 0.5=50% faster)",
-                        0.0, 0.5,
-                        value=st.session_state.get('bundling_efficiency', 0.2),
-                        key="bundling_efficiency_slider",
-                        help="Expected efficiency gain from task bundling"
-                    )
-
-                    if bundling_efficiency != st.session_state.bundling_efficiency:
-                        st.session_state.bundling_efficiency = bundling_efficiency
+                    bundling_efficiency = st.slider("Expected Efficiency Gain", 0.0, 0.5, 0.2)
 
                 with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
@@ -608,7 +463,7 @@ def main():
                                     'reduction_factor': 0.5
                                 }] if protected_time else None,
                                 'staff_distribution': {
-                                    'physician_ratio': 1 # Placeholder, needs proper calculation
+                                    'physician_ratio': physician_ratio
                                 } if staff_distribution else None,
                                 'task_bundling': {
                                     'efficiency_factor': 1 - bundling_efficiency
@@ -623,72 +478,11 @@ def main():
 
                             if advice['status'] == 'success':
                                 st.markdown("### AI Recommendations")
-
-                                # Store recommendations in session state for quick apply
-                                if 'current_recommendations' not in st.session_state:
-                                    st.session_state.current_recommendations = []
-                                st.session_state.current_recommendations = advice['recommendations']
-
                                 for i, rec in enumerate(advice['recommendations'], 1):
-                                    st.markdown(f"### {i}. {rec['title']}")
-                                    st.markdown(rec['description'])
-
-                                    # Display risk factors as bullet points
-                                    if rec.get('risk_factors', []):
-                                        st.markdown("**Risk Factors:**")
-                                        for risk in rec['risk_factors']:
-                                            st.markdown(f"• {risk}")
-
-                                    # Create columns for metrics and Quick Apply button
-                                    col1, col2 = st.columns([3, 1])
-
-                                    with col1:
-                                        if rec.get('impact', {}):
-                                            metrics_cols = st.columns(3)
-                                            with metrics_cols[0]:
-                                                if 'efficiency' in rec['impact']:
-                                                    st.metric("Efficiency", f"{rec['impact']['efficiency']:+.0f}%")
-                                            with metrics_cols[1]:
-                                                if 'cognitive_load' in rec['impact']:
-                                                    st.metric("Cognitive Load", f"{rec['impact']['cognitive_load']:+.0f}%")
-                                            with metrics_cols[2]:
-                                                if 'burnout_risk' in rec['impact']:
-                                                    st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
-
-                                    with col2:
-                                        # Quick Apply button with improved visibility
-                                        if rec.get('config'):
-                                            st.markdown("""
-                                                <style>
-                                                div.stButton > button {
-                                                    width: 100%;
-                                                    margin-top: 20px;
-                                                    background-color: #ff4b4b;
-                                                    color: white;
-                                                    border: none;
-                                                    padding: 10px 15px;
-                                                    border-radius: 5px;
-                                                }
-                                                div.stButton > button:hover {
-                                                    background-color: #ff2b2b;
-                                                }
-                                                </style>
-                                            """, unsafe_allow_html=True)
-                                            
-                                            quick_apply_key = f"quick_apply_{rec['title']}_{i}"
-                                            if st.button("🚀 Quick Apply", key=quick_apply_key, type="primary"):
-                                                config = rec['config']
-                                                success = StateManager.update_from_config(config)
-                                                if success:
-                                                    st.success("Configuration applied successfully!")
-                                                    time.sleep(0.5)
-                                                    st.rerun()
-                                                else:
-                                                    st.error("Failed to apply configuration")
-
+                                    st.markdown(f"{i}. {rec}")
                                     st.markdown("---")
 
-                                st.markdown("### Overall Impact Analysis")
+                                st.markdown("### Expected Impact")
                                 impact_cols = st.columns(3)
 
                                 with impact_cols[0]:
@@ -712,129 +506,48 @@ def main():
                                         help="Expected change in burnout risk"
                                     )
 
-                                # Enhanced confidence score display
-                                confidence_score = advice['confidence']
-                                st.markdown("### AI Confidence Assessment")
-
-                                # Create a color gradient based on confidence score
-                                color = f"rgb({int(255 * (1 - confidence_score))}, {int(255 * confidence_score)}, 0)"
-
-                                st.markdown(
-                                    f"""
-                                    <div style="
-                                        background-color: {color};
-                                        padding: 10px;
-                                        border-radius: 5px;
-                                        text-align: center;
-                                        color: white;
-                                        font-weight: bold;
-                                    ">
-                                        Confidence Score: {confidence_score:.1%}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
+                                st.progress(
+                                    advice['confidence'],
+                                    text=f"AI Confidence Score: {advice['confidence']:.1%}"
                                 )
-
-                                if confidence_score < 0.7:
-                                    st.warning(
-                                        "Note: Confidence score is below 70%. Consider reviewing recommendations carefully."
-                                    )
                             else:
                                 st.error(f"Unable to get AI recommendations: {advice['message']}")
 
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    if st.button("Save Scenario"):
-                        try:
-                            if not scenario_name:
-                                st.error("Please enter a scenario name")
-                                return
+                if st.button("Save Scenario"):
+                    try:
+                        # Create scenario configuration
+                        base_config = {
+                            'providers': providers,
+                            'adc': adc,
+                            'consults': consults,
+                            'critical_events': critical_events,
+                            'workload': workload['combined']
+                        }
 
-                            # Create scenario configuration
-                            base_config = {
-                                'providers': providers,
-                                'adc': adc,
-                                'consults': consults,
-                                'critical_events': critical_events,
-                                'workload': workload['combined']
-                            }
+                        interventions = {
+                            'protected_time_blocks': [{
+                                'start_hour': protected_start,
+                                'end_hour': protected_start + protected_duration,
+                                'reduction_factor': 0.5
+                            }] if protected_time else None,
+                            'staff_distribution': {
+                                'physician_ratio': physician_ratio
+                            } if staff_distribution else None,
+                            'task_bundling': {
+                                'efficiency_factor': 1 - bundling_efficiency
+                            } if task_bundling else None
+                        }
 
-                            interventions = {
-                                'protected_time_blocks': [{
-                                    'start_hour': protected_start,
-                                    'end_hour': protected_start + protected_duration,
-                                    'reduction_factor': 0.5
-                                }] if protected_time else None,
-                                'staff_distribution': {
-                                    'add_physician': add_physician,
-                                    'physician_start': physician_start if add_physician else None,
-                                    'physician_duration': physician_duration if add_physician else None,
-                                    'add_app': add_app,
-                                    'app_start': app_start if add_app else None,
-                                    'app_duration': app_duration if add_app else None
-                                } if staff_distribution else None,
-                                'task_bundling': {
-                                    'efficiency_factor': 1 - bundling_efficiency
-                                } if task_bundling else None
-                            }
+                        # Save scenario to database
+                        db = next(get_db())
+                        scenario = save_scenario(
+                            db, scenario_name, scenario_description,
+                            base_config, interventions
+                        )
+                        st.success(f"Scenario '{scenario_name}' saved successfully!")
 
-                            max_retries = 3
-                            retry_delay = 1
-                            last_error = None
-
-                            for attempt in range(max_retries):
-                                try:
-                                    db = next(get_db())
-                                    existing = check_scenario_exists(db, scenario_name)
-
-                                    if existing and not st.session_state.get('overwrite_confirmed', False):
-                                        st.warning(f"Scenario '{scenario_name}' already exists. Do you want to overwrite it?")
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            if st.button("Yes, Overwrite"):
-                                                st.session_state.overwrite_confirmed = True
-                                                delete_scenario(db, existing.id)
-                                                scenario = save_scenario(db, scenario_name, scenario_description, 
-                                                                      base_config, interventions)
-                                                st.success(f"Scenario '{scenario_name}' updated successfully!")
-                                        with col2:
-                                            if st.button("No, Choose Different Name"):
-                                                st.session_state.overwrite_confirmed = False
-                                                return
-                                    else:
-                                        scenario = save_scenario(db, scenario_name, scenario_description, 
-                                                              base_config, interventions)
-                                        st.success(f"Scenario '{scenario_name}' saved successfully!")
-                                        st.session_state.overwrite_confirmed = False
-                                    break
-                                except OperationalError as e:
-                                    last_error = str(e)
-                                    if attempt < max_retries - 1:
-                                        time.sleep(retry_delay * (attempt + 1))
-                                    else:
-                                        st.error(f"Database error: {last_error}\nPlease try again later.")
-                                finally:
-                                    db.close()
-
-                        except Exception as e:
-                            st.error(f"Error saving scenario: {str(e)}")
-
-                with col2:
-                    if st.button("Delete Scenario"):
-                        try:
-                            if not scenario_name:
-                                st.error("Please enter a scenario name")
-                                return
-
-                            db = next(get_db())
-                            existing = check_scenario_exists(db, scenario_name)
-                            if existing:
-                                delete_scenario(db, existing.id)
-                                st.success(f"Scenario '{scenario_name}' deleted successfully!")
-                            else:
-                                st.error(f"Scenario '{scenario_name}' not found")
-                        except Exception as e:
-                            st.error(f"Error deleting scenario: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Error saving scenario: {str(e)}")
 
             with scenario_tab2:
                 st.markdown("#### Compare Scenarios")
@@ -907,7 +620,6 @@ def main():
                             } for r in results])
 
                             st.line_chart(trend_data.set_index('timestamp'))
-
                         else:
                             st.info("No historical data available for this scenario.")
                 else:
@@ -992,24 +704,6 @@ def main():
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-
-
-def check_scenario_exists(db, scenario_name):
-    #Implementation for checking if a scenario already exists
-    #This function should query the database based on scenario_name
-    #and return the scenario object if found, otherwise None.
-    #Example Implementation (replace with actual database interaction)
-    for scenario in get_scenarios(db):
-        if scenario.name == scenario_name:
-            return scenario
-    return None
-
-
-def delete_scenario(db, scenario_id):
-    #Implementation to delete#This function should receive the scenario ID and delete
-    #the corresponding#the corresponding record from the database.
-    #Example Implementation (replace with actual database interaction)
-    pass # Replace with actual database deletion logic
 
 if __name__ == "__main__":
     main()

@@ -1,46 +1,16 @@
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy.exc import OperationalError
 import os
 from datetime import datetime
-import time
-from urllib.parse import urlparse, parse_qs
 
 # Get database URL from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Add SSL mode if not present
-if DATABASE_URL and 'sslmode=' not in DATABASE_URL.lower():
-    if '?' in DATABASE_URL:
-        DATABASE_URL += '&sslmode=require'
-    else:
-        DATABASE_URL += '?sslmode=require'
-
-def create_db_engine(retries=3, delay=1):
-    """Create database engine with retry logic"""
-    for attempt in range(retries):
-        try:
-            engine = create_engine(
-                DATABASE_URL,
-                pool_pre_ping=True,  # Enable connection health checks
-                pool_recycle=3600,   # Recycle connections after 1 hour
-                connect_args={
-                    "connect_timeout": 10  # 10 seconds connection timeout
-                }
-            )
-            # Test the connection
-            engine.connect().close()
-            return engine
-        except OperationalError as e:
-            if attempt == retries - 1:
-                raise Exception(f"Failed to connect to database after {retries} attempts: {str(e)}")
-            time.sleep(delay * (attempt + 1))  # Exponential backoff
-
 # Create SQLAlchemy engine and session
-engine = create_db_engine()
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -221,15 +191,3 @@ def get_scenario_results(db, scenario_id):
     return db.query(ScenarioResult).filter(
         ScenarioResult.scenario_id == scenario_id
     ).order_by(ScenarioResult.timestamp.desc()).all()
-
-def delete_scenario(db, scenario_id):
-    """Delete a scenario and its associated results"""
-    # Delete associated results first (due to foreign key constraint)
-    db.query(ScenarioResult).filter(ScenarioResult.scenario_id == scenario_id).delete()
-    # Delete the scenario
-    db.query(Scenario).filter(Scenario.id == scenario_id).delete()
-    db.commit()
-
-def check_scenario_exists(db, name):
-    """Check if a scenario with given name exists"""
-    return db.query(Scenario).filter(Scenario.name == name).first()

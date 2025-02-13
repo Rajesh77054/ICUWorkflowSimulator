@@ -57,17 +57,9 @@ class AIAssistant:
 Format your response as a JSON object with the following structure:
 {{
     "recommendations": [
-        {{
-            "title": "Clear recommendation title",
-            "description": "Detailed description of the recommendation",
-            "risk_factors": ["Risk factor 1", "Risk factor 2"],
-            "expected_impact": {{
-                "efficiency": numeric_value_between_0_and_100,
-                "cognitive_load": numeric_value_between_0_and_100,
-                "burnout_risk": numeric_value_between_0_and_100
-            }}
-        }},
-        // More recommendations...
+        "A clear, actionable recommendation in natural language",
+        "Another recommendation with specific details",
+        ...
     ],
     "impact": {{
         "efficiency": numeric_value_between_0_and_100,
@@ -91,15 +83,11 @@ Scenario Configuration:
 Format your response as a JSON object with the following structure:
 {{
     "analysis": [
-        {{
-            "title": "Impact analysis title",
-            "description": "Detailed description of expected impacts",
-            "implementation": "Implementation timeline and complexity details",
-            "resources": "Resource requirements and constraints",
-            "roi": "Expected ROI and benefits",
-            "risks": ["Risk factor 1", "Risk factor 2"]
-        }},
-        // More analysis points...
+        "A clear description of expected impacts in natural language",
+        "Implementation timeline and complexity details",
+        "Resource requirements and constraints",
+        "Expected ROI and benefits",
+        "Risk factors and mitigation strategies"
     ],
     "impact": {{
         "efficiency": numeric_value_between_0_and_100,
