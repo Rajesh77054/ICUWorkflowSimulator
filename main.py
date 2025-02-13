@@ -15,6 +15,8 @@ from scenario_manager import ScenarioManager
 from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
 import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor # Added import
+import time
+from sqlalchemy.exc import OperationalError
 
 
 def main():
@@ -646,24 +648,43 @@ def main():
                                 } if task_bundling else None
                             }
 
-                            # Check for existing scenario
-                            db = next(get_db())
-                            existing = check_scenario_exists(db, scenario_name)
+                            max_retries = 3
+                            retry_delay = 1
+                            last_error = None
 
-                            if existing and not st.session_state.get('overwrite_confirmed', False):
-                                st.warning(f"Scenario '{scenario_name}' already exists. Do you want to overwrite it?")
-                                if st.button("Yes, Overwrite"):
-                                    st.session_state.overwrite_confirmed = True
-                                    delete_scenario(db, existing.id)
-                                    scenario = save_scenario(db, scenario_name, scenario_description, base_config, interventions)
-                                    st.success(f"Scenario '{scenario_name}' updated successfully!")
-                                if st.button("No, Choose Different Name"):
-                                    st.session_state.overwrite_confirmed = False
-                                    return
-                            else:
-                                scenario = save_scenario(db, scenario_name, scenario_description, base_config, interventions)
-                                st.success(f"Scenario '{scenario_name}' saved successfully!")
-                                st.session_state.overwrite_confirmed = False
+                            for attempt in range(max_retries):
+                                try:
+                                    db = next(get_db())
+                                    existing = check_scenario_exists(db, scenario_name)
+
+                                    if existing and not st.session_state.get('overwrite_confirmed', False):
+                                        st.warning(f"Scenario '{scenario_name}' already exists. Do you want to overwrite it?")
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                            if st.button("Yes, Overwrite"):
+                                                st.session_state.overwrite_confirmed = True
+                                                delete_scenario(db, existing.id)
+                                                scenario = save_scenario(db, scenario_name, scenario_description, 
+                                                                      base_config, interventions)
+                                                st.success(f"Scenario '{scenario_name}' updated successfully!")
+                                        with col2:
+                                            if st.button("No, Choose Different Name"):
+                                                st.session_state.overwrite_confirmed = False
+                                                return
+                                    else:
+                                        scenario = save_scenario(db, scenario_name, scenario_description, 
+                                                              base_config, interventions)
+                                        st.success(f"Scenario '{scenario_name}' saved successfully!")
+                                        st.session_state.overwrite_confirmed = False
+                                    break
+                                except OperationalError as e:
+                                    last_error = str(e)
+                                    if attempt < max_retries - 1:
+                                        time.sleep(retry_delay * (attempt + 1))
+                                    else:
+                                        st.error(f"Database error: {last_error}\nPlease try again later.")
+                                finally:
+                                    db.close()
 
                         except Exception as e:
                             st.error(f"Error saving scenario: {str(e)}")
