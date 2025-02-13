@@ -567,11 +567,10 @@ def main():
                                 selected_scenarios
                             )
 
-                            # Display comparison results
-                            st.dataframe(comparison_results)
-
-                            # Create visualization of key metrics
+                            # Key Metrics Comparison
+                            st.markdown("### Key Metrics Comparison")
                             metrics_fig = go.Figure()
+
                             for scenario in selected_scenarios:
                                 scenario_data = comparison_results[
                                     comparison_results['scenario_name'] == scenario
@@ -583,14 +582,141 @@ def main():
                                         scenario_data['metrics'].iloc[0]['efficiency'],
                                         scenario_data['metrics'].iloc[0]['cognitive_load'],
                                         scenario_data['metrics'].iloc[0]['burnout_risk']
-                                    ]
+                                    ],
+                                    text=[
+                                        f"{v:.1%}" for v in [
+                                            scenario_data['metrics'].iloc[0]['efficiency'],
+                                            scenario_data['metrics'].iloc[0]['cognitive_load'],
+                                            scenario_data['metrics'].iloc[0]['burnout_risk']
+                                        ]
+                                    ],
+                                    textposition='auto'
                                 ))
 
                             metrics_fig.update_layout(
                                 title="Scenario Comparison - Key Metrics",
-                                barmode='group'
+                                barmode='group',
+                                yaxis=dict(
+                                    title="Score",
+                                    tickformat=".0%",
+                                    range=[0, 1]
+                                ),
+                                showlegend=True,
+                                legend=dict(
+                                    orientation="h",
+                                    yanchor="bottom",
+                                    y=1.02,
+                                    xanchor="right",
+                                    x=1
+                                )
                             )
                             st.plotly_chart(metrics_fig, use_container_width=True)
+
+                            # Time Allocation Comparison
+                            st.markdown("### Time Allocation Comparison")
+                            time_cols = st.columns(len(selected_scenarios))
+                            for idx, scenario in enumerate(selected_scenarios):
+                                scenario_data = comparison_results[
+                                    comparison_results['scenario_name'] == scenario
+                                ]
+                                with time_cols[idx]:
+                                    st.markdown(f"**{scenario}**")
+                                    time_data = scenario_data['metrics'].iloc[0]
+                                    fig = go.Figure(data=[go.Pie(
+                                        labels=['Direct Care', 'Interruptions', 'Critical Events', 'Admin'],
+                                        values=[
+                                            time_data.get('direct_care_time', 25),
+                                            time_data.get('interruption_time', 15),
+                                            time_data.get('critical_time', 20),
+                                            time_data.get('admin_time', 40)
+                                        ],
+                                        hole=.4
+                                    )])
+                                    fig.update_layout(title="Time Distribution")
+                                    st.plotly_chart(fig, use_container_width=True)
+
+                            # Intervention Effectiveness
+                            st.markdown("### Intervention Effectiveness")
+                            effectiveness_data = []
+                            for scenario in selected_scenarios:
+                                scenario_data = comparison_results[
+                                    comparison_results['scenario_name'] == scenario
+                                ]
+                                intervention_data = scenario_data['metrics'].iloc[0].get('intervention_effectiveness', {})
+                                effectiveness_data.append({
+                                    'Scenario': scenario,
+                                    'Protected Time': intervention_data.get('protected_time', 0),
+                                    'Staff Distribution': intervention_data.get('staff_distribution', 0),
+                                    'Task Bundling': intervention_data.get('task_bundling', 0)
+                                })
+
+                            effectiveness_df = pd.DataFrame(effectiveness_data)
+                            effectiveness_fig = go.Figure()
+
+                            for col in ['Protected Time', 'Staff Distribution', 'Task Bundling']:
+                                effectiveness_fig.add_trace(go.Bar(
+                                    name=col,
+                                    x=effectiveness_df['Scenario'],
+                                    y=effectiveness_df[col],
+                                    text=[f"{v:.0%}" for v in effectiveness_df[col]],
+                                    textposition='auto'
+                                ))
+
+                            effectiveness_fig.update_layout(
+                                title="Intervention Effectiveness by Type",
+                                barmode='group',
+                                yaxis=dict(
+                                    title="Effectiveness Score",
+                                    tickformat=".0%",
+                                    range=[0, 1]
+                                )
+                            )
+                            st.plotly_chart(effectiveness_fig, use_container_width=True)
+
+                            # Risk Assessment Radar Chart
+                            st.markdown("### Risk Assessment")
+                            risk_fig = go.Figure()
+
+                            risk_categories = [
+                                'Workflow Disruption',
+                                'Provider Burnout',
+                                'Patient Care Impact',
+                                'Resource Utilization',
+                                'Implementation Risk'
+                            ]
+
+                            for scenario in selected_scenarios:
+                                scenario_data = comparison_results[
+                                    comparison_results['scenario_name'] == scenario
+                                ]
+                                risk_data = scenario_data['metrics'].iloc[0].get('risk_assessment', {})
+
+                                risk_values = [
+                                    risk_data.get('workflow_disruption', 0.5),
+                                    risk_data.get('provider_burnout', 0.5),
+                                    risk_data.get('patient_care_impact', 0.5),
+                                    risk_data.get('resource_utilization', 0.5),
+                                    risk_data.get('implementation_risk', 0.5),
+                                    risk_data.get('workflow_disruption', 0.5)  # Close the radar plot
+                                ]
+
+                                risk_fig.add_trace(go.Scatterpolar(
+                                    r=risk_values,
+                                    theta=risk_categories + [risk_categories[0]],
+                                    name=scenario,
+                                    fill='toself'
+                                ))
+
+                            risk_fig.update_layout(
+                                polar=dict(
+                                    radialaxis=dict(
+                                        visible=True,
+                                        range=[0, 1]
+                                    )
+                                ),
+                                showlegend=True
+                            )
+                            st.plotly_chart(risk_fig, use_container_width=True)
                 else:
                     st.info("No scenarios available. Create scenarios to compare them.")
 
