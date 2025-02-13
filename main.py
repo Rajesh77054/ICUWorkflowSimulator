@@ -1,21 +1,31 @@
-import streamlit as st
-import numpy as np
-import pandas as pd
-from datetime import datetime
-from styles import apply_custom_styles, section_header
-from utils import (calculate_interruptions, calculate_workload,
-                  create_interruption_chart, create_time_allocation_pie,
-                  create_workload_timeline, create_burnout_gauge,
-                  create_burnout_radar_chart, create_prediction_trend_chart,
-                  generate_report_data, format_recommendations)
-from simulator import WorkflowSimulator
-from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
-from ml_predictor import MLPredictor
-from scenario_manager import ScenarioManager
-from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
-import plotly.graph_objects as go
-from scenario_advisor import ScenarioAdvisor # Added import
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    import streamlit as st
+    import numpy as np
+    import pandas as pd
+    from datetime import datetime
+    from styles import apply_custom_styles, section_header
+    from utils import (calculate_interruptions, calculate_workload,
+                      create_interruption_chart, create_time_allocation_pie,
+                      create_workload_timeline, create_burnout_gauge,
+                      create_burnout_radar_chart, create_prediction_trend_chart,
+                      generate_report_data, format_recommendations)
+    from simulator import WorkflowSimulator
+    from models import get_db, save_workflow_record, get_historical_records, check_scenario_exists, delete_scenario, save_scenario
+    from ml_predictor import MLPredictor
+    from scenario_manager import ScenarioManager
+    from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
+    import plotly.graph_objects as go
+    from scenario_advisor import ScenarioAdvisor
+    logger.info("All imports successful")
+except Exception as e:
+    logger.error(f"Error during imports: {str(e)}")
+    raise
 
 def main():
     st.set_page_config(
