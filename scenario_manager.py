@@ -185,43 +185,93 @@ class ScenarioManager:
 
     def _calculate_scenario_metrics(self, scenario: ScenarioConfig) -> Dict:
         """Calculate comprehensive metrics for scenario analysis"""
+        # Calculate base efficiency impact from protected time blocks
+        protected_time_impact = self._calculate_protected_time_impact(scenario.interventions)
+
         base_metrics = {
-            'efficiency': self.simulator.simulate_provider_efficiency(
+            'efficiency': min(1.0, self.simulator.simulate_provider_efficiency(
                 sum(self.simulator.interruption_scales.values()),
                 scenario.base_config.get('providers', 1),
                 scenario.base_config.get('workload', 0.0),
                 scenario.base_config.get('critical_events_per_day', 0),
                 scenario.base_config.get('admissions', 0),
                 scenario.base_config.get('adc', 0)
-            ),
-            'cognitive_load': self.simulator.calculate_cognitive_load(
+            ) * (1 + protected_time_impact['efficiency_boost'])),
+
+            'cognitive_load': max(0.0, min(1.0, self.simulator.calculate_cognitive_load(
                 sum(self.simulator.interruption_scales.values()),
                 scenario.base_config.get('critical_events_per_day', 0),
                 scenario.base_config.get('admissions', 0),
                 scenario.base_config.get('workload', 0.0)
-            ),
-            'burnout_risk': self.simulator.calculate_burnout_risk(
+            ) * (1 - protected_time_impact['cognitive_reduction']))),
+
+            'burnout_risk': max(0.0, min(1.0, self.simulator.calculate_burnout_risk(
                 scenario.base_config.get('workload', 0.0),
                 sum(self.simulator.interruption_scales.values()),
                 scenario.base_config.get('critical_events_per_day', 0)
-            )
+            ) * (1 - protected_time_impact['burnout_reduction'])))
         }
 
         # Calculate intervention-specific metrics
         if scenario.interventions:
             intervention_metrics = self._calculate_intervention_metrics(scenario)
-
-            # Calculate time distribution based on interventions
             time_distribution = self._calculate_time_distribution(scenario)
+            risk_assessment = self._calculate_risk_assessment(scenario, base_metrics)
 
             base_metrics.update(intervention_metrics)
             base_metrics.update(time_distribution)
-
-            # Calculate risk assessment
-            risk_assessment = self._calculate_risk_assessment(scenario, base_metrics)
             base_metrics['risk_assessment'] = risk_assessment
 
         return base_metrics
+
+    def _calculate_protected_time_impact(self, interventions: Dict) -> Dict:
+        """Calculate the impact of protected time blocks based on time of day"""
+        impact = {
+            'efficiency_boost': 0.0,
+            'cognitive_reduction': 0.0,
+            'burnout_reduction': 0.0
+        }
+
+        if not interventions or 'protected_time_blocks' not in interventions:
+            return impact
+
+        blocks = interventions['protected_time_blocks']
+        for block in blocks:
+            if block is None:
+                continue
+
+            start_hour = block.get('start_hour', 0)
+            end_hour = block.get('end_hour', 0)
+            block_hours = end_hour - start_hour
+
+            # Time of day effectiveness factors
+            if 8 <= start_hour <= 11:  # Early morning (optimal)
+                time_factor = 1.2
+                cognitive_factor = 0.25
+                burnout_factor = 0.3
+            elif 11 < start_hour <= 14:  # Mid-day (moderate)
+                time_factor = 1.0
+                cognitive_factor = 0.2
+                burnout_factor = 0.25
+            else:  # Afternoon (less effective)
+                time_factor = 0.8
+                cognitive_factor = 0.15
+                burnout_factor = 0.2
+
+            # Duration impact (longer blocks have diminishing returns)
+            duration_factor = 1.0 if block_hours <= 3 else 0.9
+
+            # Calculate impacts
+            efficiency_impact = min(0.3, block_hours * 0.05 * time_factor * duration_factor)
+            cognitive_impact = min(0.25, block_hours * cognitive_factor * duration_factor)
+            burnout_impact = min(0.3, block_hours * burnout_factor * duration_factor)
+
+            # Update overall impact
+            impact['efficiency_boost'] = max(impact['efficiency_boost'], efficiency_impact)
+            impact['cognitive_reduction'] = max(impact['cognitive_reduction'], cognitive_impact)
+            impact['burnout_reduction'] = max(impact['burnout_reduction'], burnout_impact)
+
+        return impact
 
     def _calculate_intervention_metrics(self, scenario: ScenarioConfig) -> Dict:
         """Calculate metrics specific to interventions"""
@@ -246,7 +296,7 @@ class ScenarioManager:
                 block_hours = end_hour - start_hour
 
                 # Calculate base effectiveness
-                base_effectiveness = min(0.8, block_hours * 0.1)  # Max 80% effectiveness
+                base_effectiveness = min(0.8, block_hours * 0.1)
 
                 # Time of day factors
                 if 8 <= start_hour <= 11:  # Early morning is most effective
@@ -264,93 +314,45 @@ class ScenarioManager:
 
             metrics['intervention_effectiveness']['protected_time'] = protected_time_effectiveness
 
-        if scenario.interventions.get('staff_distribution'):
-            dist = scenario.interventions['staff_distribution']
-            # Calculate staff distribution effectiveness based on optimal ratios
-            optimal_ratio = 0.4  # 40% physicians is considered optimal
-            current_ratio = dist.get('physician_ratio', 0.5)
-            ratio_difference = abs(optimal_ratio - current_ratio)
-            effectiveness = max(0.0, 1.0 - (ratio_difference * 2))  # Linear penalty for deviation
-            metrics['intervention_effectiveness']['staff_distribution'] = effectiveness
-
-        if scenario.interventions.get('task_bundling'):
-            bundling = scenario.interventions['task_bundling']
-            # Calculate task bundling effectiveness
-            efficiency_factor = bundling.get('efficiency_factor', 1.0)
-            effectiveness = min(0.9, (1.0 - efficiency_factor) * 1.5)  # Convert efficiency to effectiveness
-            metrics['intervention_effectiveness']['task_bundling'] = effectiveness
-
         return metrics
-
-    def _calculate_protected_time_efficiency(self, blocks: List[Dict]) -> float:
-        """Calculate efficiency improvement from protected time blocks"""
-        # Implementation for protected time efficiency calculation
-        total_protected_hours = sum(
-            block['end_hour'] - block['start_hour']
-            for block in blocks
-        )
-        return min(1.0, 1.0 + (total_protected_hours * 0.02))  # 2% improvement per protected hour
-
-    def _calculate_staff_distribution_impact(self, distribution: Dict) -> float:
-        """Calculate impact of staff distribution changes"""
-        # Implementation for staff distribution impact calculation
-        return distribution.get('efficiency_factor', 1.0)
-
-    def _calculate_task_bundling_efficiency(self, bundling: Dict) -> float:
-        """Calculate efficiency gains from task bundling"""
-        # Implementation for task bundling efficiency calculation
-        return bundling.get('efficiency_factor', 1.0)
-
-    def _calculate_time_distribution(self, scenario: ScenarioConfig) -> Dict:
-        """Calculate time distribution based on interventions"""
-        # Start with base distribution
-        distribution = {
-            'direct_care_time': 30,  # Base percentage
-            'interruption_time': 20,
-            'critical_time': 20,
-            'admin_time': 30
-        }
-
-        if 'protected_time_blocks' in scenario.interventions:
-            blocks = scenario.interventions['protected_time_blocks']
-            total_protected_hours = sum(
-                block['end_hour'] - block['start_hour']
-                for block in blocks if block is not None
-            )
-
-            # Adjust distribution based on protected time
-            interruption_reduction = min(total_protected_hours * 2, 10)  # Max 10% reduction
-            distribution['interruption_time'] = max(10, distribution['interruption_time'] - interruption_reduction)
-            distribution['direct_care_time'] += interruption_reduction
-
-        return distribution
 
     def _calculate_risk_assessment(self, scenario: ScenarioConfig, metrics: Dict) -> Dict:
         """Calculate risk assessment based on scenario configuration and metrics"""
-        base_risk = 0.5  # Default risk level
+        base_risk = 0.5
 
-        # Calculate workflow disruption risk
         if 'protected_time_blocks' in scenario.interventions:
             blocks = scenario.interventions['protected_time_blocks']
-            total_protected_hours = sum(
-                block['end_hour'] - block['start_hour']
-                for block in blocks if block is not None
-            )
+            total_impact = 0.0
 
-            # More protected time reduces workflow disruption risk
-            workflow_disruption = max(0.2, base_risk - (total_protected_hours * 0.05))
+            for block in blocks:
+                if block is None:
+                    continue
 
-            # But very long protected blocks might increase other risks
-            implementation_risk = min(0.8, base_risk + (total_protected_hours * 0.03))
+                start_hour = block.get('start_hour', 0)
+                end_hour = block.get('end_hour', 0)
+                block_hours = end_hour - start_hour
+
+                # Calculate time-of-day impact on risk
+                if 8 <= start_hour <= 11:
+                    time_impact = 0.15  # Early morning has highest positive impact
+                elif 11 < start_hour <= 14:
+                    time_impact = 0.10  # Mid-day has moderate impact
+                else:
+                    time_impact = 0.05  # Afternoon has least impact
+
+                total_impact += time_impact * (1.0 if block_hours <= 3 else 0.9)
+
+            workflow_disruption = max(0.2, base_risk - total_impact)
+            implementation_risk = min(0.8, base_risk + (total_impact * 0.5))
         else:
             workflow_disruption = base_risk
             implementation_risk = base_risk
 
         return {
             'workflow_disruption': workflow_disruption,
-            'provider_burnout': max(0.2, metrics['burnout_risk'] - 0.1),
+            'provider_burnout': max(0.2, metrics['burnout_risk'] - total_impact),
             'patient_care_impact': min(0.8, (1 - metrics['efficiency']) + 0.2),
-            'resource_utilization': base_risk,
+            'resource_utilization': max(0.3, base_risk - (total_impact * 0.5)),
             'implementation_risk': implementation_risk
         }
 
