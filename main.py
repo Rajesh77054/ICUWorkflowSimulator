@@ -440,7 +440,7 @@ def main():
                 if task_bundling:
                     bundling_efficiency = st.slider("Expected Efficiency Gain", 0.0, 0.5, 0.2)
 
-                with st.expander("🤖 AI Assistant Recommendations", expanded=True): # Added AI Assistant Section
+                with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
                         current_metrics = {
                             'efficiency': efficiency,
@@ -477,25 +477,41 @@ def main():
                             )
 
                             if advice['status'] == 'success':
-                                st.markdown("#### AI Recommendations")
-                                for i, rec in enumerate(advice['recommendations'], 1):
-                                    st.markdown(f"{i}. {rec}")
+                                st.markdown("### AI Recommendations")
+                                for rec in advice['recommendations']:
+                                    st.markdown(rec)
+                                    st.markdown("---")
 
-                                st.markdown("#### Expected Impact")
-                                impact_df = pd.DataFrame({
-                                    'Metric': ['Efficiency', 'Cognitive Load', 'Burnout Risk'],
-                                    'Expected Impact': [
+                                st.markdown("### Expected Impact")
+                                impact_cols = st.columns(3)
+
+                                with impact_cols[0]:
+                                    st.metric(
+                                        "Efficiency Change",
                                         f"{advice['impact_analysis']['efficiency']:+.1%}",
-                                        f"{advice['impact_analysis']['cognitive_load']:+.1%}",
-                                        f"{advice['impact_analysis']['burnout_risk']:+.1%}"
-                                    ]
-                                })
-                                st.table(impact_df)
+                                        help="Expected change in workflow efficiency"
+                                    )
 
-                                st.markdown(f"**Confidence Score:** {advice['confidence']:.1%}")
+                                with impact_cols[1]:
+                                    st.metric(
+                                        "Cognitive Load Change",
+                                        f"{advice['impact_analysis']['cognitive_load']:+.1%}",
+                                        help="Expected change in cognitive load"
+                                    )
+
+                                with impact_cols[2]:
+                                    st.metric(
+                                        "Burnout Risk Change",
+                                        f"{advice['impact_analysis']['burnout_risk']:+.1%}",
+                                        help="Expected change in burnout risk"
+                                    )
+
+                                st.progress(
+                                    advice['confidence'],
+                                    text=f"AI Confidence Score: {advice['confidence']:.1%}"
+                                )
                             else:
                                 st.error(f"Unable to get AI recommendations: {advice['message']}")
-
 
                 if st.button("Save Scenario"):
                     try:
