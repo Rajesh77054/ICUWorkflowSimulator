@@ -458,7 +458,7 @@ def main():
                 # Update session state and trigger UI refresh if needed
                 if protected_time != st.session_state.protected_time:
                     st.session_state.protected_time = protected_time
-                    st.experimental_rerun()
+                    st.rerun()
 
                 if protected_time:
                     protected_start = st.slider(
@@ -491,7 +491,7 @@ def main():
 
                 if staff_distribution != st.session_state.staff_distribution:
                     st.session_state.staff_distribution = staff_distribution
-                    st.experimental_rerun()
+                    st.rerun()
 
                 if staff_distribution:
                     st.markdown("##### Additional Provider Coverage")
@@ -506,7 +506,7 @@ def main():
 
                     if add_physician != st.session_state.add_physician:
                         st.session_state.add_physician = add_physician
-                        st.experimental_rerun()
+                        st.rerun()
 
                     if add_physician:
                         physician_start = st.slider(
@@ -539,7 +539,7 @@ def main():
 
                     if add_app != st.session_state.add_app:
                         st.session_state.add_app = add_app
-                        st.experimental_rerun()
+                        st.rerun()
 
                     if add_app:
                         app_start = st.slider(
@@ -571,7 +571,7 @@ def main():
 
                 if task_bundling != st.session_state.task_bundling:
                     st.session_state.task_bundling = task_bundling
-                    st.experimental_rerun()
+                    st.rerun()
 
                 if task_bundling:
                     bundling_efficiency = st.slider(
@@ -661,32 +661,10 @@ def main():
                                             if st.button("🚀 Quick Apply", key=f"apply_{i}", type="primary"):
                                                 config = rec['config']
 
-                                                if config.get('protected_time'):
-                                                    st.session_state['protected_time'] = True
-                                                    st.session_state['protected_start'] = config['protected_time']['start_hour']
-                                                    st.session_state['protected_duration'] = config['protected_time']['duration']
-
-                                                if config.get('staff_distribution'):
-                                                    st.session_state['staff_distribution'] = True
-                                                    staff_config = config['staff_distribution']
-
-                                                    if staff_config.get('add_physician'):
-                                                        st.session_state['add_physician'] = True
-                                                        st.session_state['physician_start'] = staff_config['physician_start']
-                                                        st.session_state['physician_duration'] = staff_config['physician_duration']
-
-                                                    if staff_config.get('add_app'):
-                                                        st.session_state['add_app'] = True
-                                                        st.session_state['app_start'] = staff_config['app_start']
-                                                        st.session_state['app_duration'] = staff_config['app_duration']
-
-                                                if config.get('task_bundling'):
-                                                    st.session_state['task_bundling'] = True
-                                                    st.session_state['bundling_efficiency'] = config['task_bundling']['efficiency_factor']
-
+                                                StateManager.update_from_config(config)
                                                 st.success("Configuration applied!")
                                                 time.sleep(0.5)  # Brief pause to ensure state is updated
-                                                st.experimental_rerun()
+                                                st.rerun()
 
                                     st.markdown("---")
 
@@ -1012,7 +990,6 @@ def delete_scenario(db, scenario_id):
     #the corresponding#the corresponding record from the database.
     #Example Implementation (replace with actual database interaction)
     pass # Replace with actual database deletion logic
-
 
 if __name__ == "__main__":
     main()
