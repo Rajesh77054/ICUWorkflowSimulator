@@ -856,7 +856,14 @@ def main():
                         'Cognitive Load': float(record.cognitive_load) if record.cognitive_load is not None else 0.0,
                         'Burnout Risk': float(record.burnout_risk) if record.burnout_risk is not None else 0.0,
                         'Interruptions/Provider': float(record.interrupts_per_provider) if record.interrupts_per_provider is not None else 0.0
-                    } for record in historical_records])
+                    } for record in historical_records if record is not None])
+
+                    if hist_df.empty:
+                        st.info("No historical data available yet. Data will appear as metrics are recorded.")
+                    else:
+                        st.line_chart(hist_df.set_index('Timestamp')[
+                            ['Efficiency', 'Cognitive Load', 'Burnout Risk']
+                        ])
 
                     st.line_chart(hist_df.set_index('Timestamp')[
                         ['Efficiency', 'Cognitive Load', 'Burnout Risk']
