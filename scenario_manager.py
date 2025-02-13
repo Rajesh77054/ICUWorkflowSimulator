@@ -96,18 +96,27 @@ class ScenarioManager:
             self._apply_task_bundling(interventions['task_bundling'])
     
     def _apply_protected_time_blocks(self, blocks: List[Dict]):
-        """Apply protected time blocks to reduce interruptions"""
+        """Apply protected time blocks to reduce specific interruptions"""
         for block in blocks:
             start_hour = block.get('start_hour', 0)
             end_hour = block.get('end_hour', 0)
             reduction_factor = block.get('reduction_factor', 0.5)
             
-            # Adjust interruption frequencies during protected time
+            # Only modify nursing questions and floor consults during protected time
+            protected_interruptions = ['nursing_question']
+            current_hour = datetime.now().hour
+            
             for key in self.simulator.interruption_scales:
-                self.simulator.interruption_scales[key] *= (
-                    reduction_factor if start_hour <= datetime.now().hour < end_hour
-                    else 1.0
-                )
+                if key in protected_interruptions:
+                    self.simulator.interruption_scales[key] *= (
+                        reduction_factor if start_hour <= current_hour < end_hour
+                        else 1.0
+                    )
+            
+            # Adjust consult timing if in protected block
+            if hasattr(self.simulator, 'admission_times'):
+                if start_hour <= current_hour < end_hour:
+                    self.simulator.admission_times['consult'] *= (1 + (1 - reduction_factor))
     
     def _apply_staff_distribution(self, distribution: Dict):
         """Apply staff distribution patterns"""
