@@ -524,7 +524,8 @@ def main():
                                                         st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
 
                                         with col2:
-                                            if rec.get('config', {}):  # Changed to use .get() with default empty dict
+                                            # Quick Apply button
+                                            if rec.get('config'):  # Changed condition to show button when config exists
                                                 if st.button("Quick Apply", key=f"apply_{i}"):
                                                     config = rec['config']
                                                     # Apply configuration
@@ -535,14 +536,17 @@ def main():
 
                                                     if config.get('staff_distribution'):
                                                         st.session_state.staff_distribution = True
-                                                        if config.get('add_physician'):
+                                                        staff_config = config['staff_distribution']
+
+                                                        if staff_config.get('add_physician'):
                                                             st.session_state.add_physician = True
-                                                            st.session_state.physician_start = config['staff_distribution']['physician_start']
-                                                            st.session_state.physician_duration = config['staff_distribution']['physician_duration']
-                                                        if config.get('add_app'):
+                                                            st.session_state.physician_start = staff_config['physician_start']
+                                                            st.session_state.physician_duration = staff_config['physician_duration']
+
+                                                        if staff_config.get('add_app'):
                                                             st.session_state.add_app = True
-                                                            st.session_state.app_start = config['staff_distribution']['app_start']
-                                                            st.session_state.app_duration = config['staff_distribution']['app_duration']
+                                                            st.session_state.app_start = staff_config['app_start']
+                                                            st.session_state.app_duration = staff_config['app_duration']
 
                                                     if config.get('task_bundling'):
                                                         st.session_state.task_bundling = True
@@ -853,8 +857,7 @@ def check_scenario_exists(db, scenario_name):
 
 
 def delete_scenario(db, scenario_id):
-    #Implementation to delete a scenario from the database.
-    #This function should receive the scenario ID and delete
+    #Implementation to delete#This function should receive the scenario ID and delete
     #the corresponding#the corresponding record from the database.
     #Example Implementation (replace with actual database interaction)
     pass # Replace with actual database deletion logic

@@ -32,11 +32,11 @@ class ScenarioAdvisor:
                     "description": rec.get('description', ''),
                     "risk_factors": rec.get('risk_factors', []),
                     "config": config,  # Configuration for quick apply
-                    "impact": rec.get('expected_impact', {
-                        'efficiency': 0,
-                        'cognitive_load': 0,
-                        'burnout_risk': 0
-                    })
+                    "impact": {
+                        'efficiency': rec.get('expected_impact', {}).get('efficiency', 0),
+                        'cognitive_load': rec.get('expected_impact', {}).get('cognitive_load', 0),
+                        'burnout_risk': rec.get('expected_impact', {}).get('burnout_risk', 0)
+                    }
                 }
                 formatted_recommendations.append(formatted_rec)
             else:
@@ -69,26 +69,31 @@ class ScenarioAdvisor:
         """Extract configuration parameters from AI recommendation"""
         config = {}
 
+        suggestion = recommendation.get('suggestion', '').lower()
+        description = recommendation.get('description', '').lower()
+
         # Map recommendation keywords to configuration parameters
-        if 'protected_time' in recommendation.get('suggestion', '').lower():
-            config['protected_time'] = True
-            config['protected_start'] = 9  # Default to 9 AM
-            config['protected_duration'] = 2  # Default to 2 hours
+        if 'protected time' in suggestion or 'protected time' in description:
+            config['protected_time'] = {
+                'start_hour': 9,  # Default to 9 AM
+                'duration': 2,    # Default to 2 hours
+            }
 
-        if 'staff' in recommendation.get('suggestion', '').lower():
-            config['staff_distribution'] = True
-            if 'physician' in recommendation.get('description', '').lower():
-                config['add_physician'] = True
-                config['physician_start'] = 8
-                config['physician_duration'] = 4
-            if 'app' in recommendation.get('description', '').lower():
-                config['add_app'] = True
-                config['app_start'] = 8
-                config['app_duration'] = 4
+        if 'staff' in suggestion or 'staff distribution' in description:
+            config['staff_distribution'] = {}
+            if 'physician' in description:
+                config['staff_distribution']['add_physician'] = True
+                config['staff_distribution']['physician_start'] = 8
+                config['staff_distribution']['physician_duration'] = 4
+            if 'app' in description:
+                config['staff_distribution']['add_app'] = True
+                config['staff_distribution']['app_start'] = 8
+                config['staff_distribution']['app_duration'] = 4
 
-        if 'bundling' in recommendation.get('suggestion', '').lower():
-            config['task_bundling'] = True
-            config['bundling_efficiency'] = 0.2  # Default 20% efficiency gain
+        if 'bundling' in suggestion or 'task bundling' in description:
+            config['task_bundling'] = {
+                'efficiency_factor': 0.2  # Default 20% efficiency gain
+            }
 
         return config
 
