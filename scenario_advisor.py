@@ -68,31 +68,31 @@ class ScenarioAdvisor:
     def _extract_config_from_recommendation(self, recommendation):
         """Extract configuration parameters from AI recommendation"""
         config = {}
-
-        suggestion = recommendation.get('title', '').lower()
-        description = recommendation.get('description', '').lower()
-
-        # Map recommendation keywords to configuration parameters
-        if 'protected time' in suggestion or 'protected time' in description:
+        impact = recommendation.get('expected_impact', {})
+        
+        # Extract values directly from recommendation if available
+        if 'protected_time' in recommendation.get('config', {}):
+            pt_config = recommendation['config']['protected_time']
             config['protected_time'] = {
-                'start_hour': 9,  # Default to 9 AM
-                'duration': 2,    # Default to 2 hours
+                'start_hour': pt_config.get('start_hour', 9),
+                'duration': pt_config.get('duration', 2),
             }
 
-        if 'staff' in suggestion or 'staff distribution' in description:
-            config['staff_distribution'] = {}
-            if 'physician' in description:
-                config['staff_distribution']['add_physician'] = True
-                config['staff_distribution']['physician_start'] = 8
-                config['staff_distribution']['physician_duration'] = 4
-            if 'app' in description:
-                config['staff_distribution']['add_app'] = True
-                config['staff_distribution']['app_start'] = 8
-                config['staff_distribution']['app_duration'] = 4
+        if 'staff_distribution' in recommendation.get('config', {}):
+            staff_config = recommendation['config']['staff_distribution']
+            config['staff_distribution'] = {
+                'add_physician': staff_config.get('add_physician', False),
+                'physician_start': staff_config.get('physician_start', 8),
+                'physician_duration': staff_config.get('physician_duration', 4),
+                'add_app': staff_config.get('add_app', False),
+                'app_start': staff_config.get('app_start', 8),
+                'app_duration': staff_config.get('app_duration', 4)
+            }
 
-        if 'bundling' in suggestion or 'task bundling' in description:
+        if 'task_bundling' in recommendation.get('config', {}):
+            bundle_config = recommendation['config']['task_bundling']
             config['task_bundling'] = {
-                'efficiency_factor': 0.2  # Default 20% efficiency gain
+                'efficiency_factor': bundle_config.get('efficiency_factor', 0.2)
             }
 
         return config

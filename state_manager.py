@@ -46,6 +46,11 @@ class StateManager:
         try:
             logger.info(f"Updating state from config: {config}")
             
+            # Reset intervention states first
+            st.session_state['protected_time'] = False
+            st.session_state['staff_distribution'] = False
+            st.session_state['task_bundling'] = False
+            
             if config.get('protected_time'):
                 st.session_state['protected_time'] = True
                 st.session_state['protected_start'] = config['protected_time']['start_hour']
@@ -55,15 +60,17 @@ class StateManager:
             if config.get('staff_distribution'):
                 st.session_state['staff_distribution'] = True
                 staff_config = config['staff_distribution']
-
-                if staff_config.get('add_physician'):
-                    st.session_state['add_physician'] = True
+                
+                # Update physician settings
+                st.session_state['add_physician'] = staff_config.get('add_physician', False)
+                if st.session_state['add_physician']:
                     st.session_state['physician_start'] = staff_config['physician_start']
                     st.session_state['physician_duration'] = staff_config['physician_duration']
                     logger.info("Updated physician staffing settings")
 
-                if staff_config.get('add_app'):
-                    st.session_state['add_app'] = True
+                # Update APP settings
+                st.session_state['add_app'] = staff_config.get('add_app', False)
+                if st.session_state['add_app']:
                     st.session_state['app_start'] = staff_config['app_start']
                     st.session_state['app_duration'] = staff_config['app_duration']
                     logger.info("Updated APP staffing settings")
