@@ -9,8 +9,15 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Create SQLAlchemy engine and session
-engine = create_engine(DATABASE_URL)
+# Create SQLAlchemy engine with connection pool settings
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Enable connection health checks
+    pool_recycle=3600,   # Recycle connections after 1 hour
+    pool_size=5,         # Maximum number of connections
+    max_overflow=2,      # Allow 2 connections beyond pool_size
+    pool_timeout=30      # Wait up to 30 seconds for available connection
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -101,7 +108,12 @@ Base.metadata.create_all(bind=engine)
 def get_db():
     db = SessionLocal()
     try:
+        # Test the connection
+        db.execute('SELECT 1')
         yield db
+    except Exception as e:
+        db.rollback()
+        raise
     finally:
         db.close()
 
