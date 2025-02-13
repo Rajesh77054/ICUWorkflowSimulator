@@ -1,16 +1,49 @@
 from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.pool import QueuePool
 import os
 from datetime import datetime
+import logging
+from urllib.parse import urlparse, parse_qs
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Get database URL from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Create SQLAlchemy engine and session
-engine = create_engine(DATABASE_URL)
+# Parse the URL to add SSL requirements if not present
+parsed_url = urlparse(DATABASE_URL)
+query_params = parse_qs(parsed_url.query)
+
+# Add SSL mode if not present
+if 'sslmode' not in query_params:
+    if DATABASE_URL.endswith('/'):
+        DATABASE_URL = f"{DATABASE_URL}?sslmode=require"
+    else:
+        DATABASE_URL = f"{DATABASE_URL}?sslmode=require"
+
+# Configure SQLAlchemy engine with connection pooling and retry settings
+engine = create_engine(
+    DATABASE_URL,
+    poolclass=QueuePool,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,  # Recycle connections after 30 minutes
+    pool_pre_ping=True,  # Enable connection health checks
+    connect_args={
+        "connect_timeout": 10,  # Connection timeout in seconds
+        "keepalives": 1,       # Enable keepalive
+        "keepalives_idle": 30  # Idle time before sending keepalive
+    }
+)
+
+# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -95,23 +128,22 @@ class ScenarioResult(Base):
     # Relationship
     scenario = relationship("Scenario", back_populates="results")
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
-
+# Improved database session management
 def get_db():
     db = SessionLocal()
     try:
+        # Test the connection
+        db.execute("SELECT 1")
         yield db
+    except Exception as e:
+        logger.error(f"Database connection error: {e}")
+        raise
     finally:
         db.close()
 
-def save_workflow_record(
-    db,
-    nursing_q, exam_callbacks, peer_interrupts,
-    providers, admissions, consults, transfers,
-    critical_events, metrics, predictions
-):
-    """Save a workflow record to the database"""
+def save_workflow_record(db, nursing_q, exam_callbacks, peer_interrupts,
+                        providers, admissions, consults, transfers,
+                        critical_events, metrics, predictions):
     record = WorkflowRecord(
         nursing_questions=nursing_q,
         exam_callbacks=exam_callbacks,
@@ -140,7 +172,6 @@ def save_workflow_record(
     return record
 
 def save_scenario(db, name, description, base_config, interventions):
-    """Save a new scenario configuration"""
     scenario = Scenario(
         name=name,
         description=description,
@@ -153,7 +184,6 @@ def save_scenario(db, name, description, base_config, interventions):
     return scenario
 
 def save_scenario_result(db, scenario_id, metrics, analysis):
-    """Save scenario execution results"""
     result = ScenarioResult(
         scenario_id=scenario_id,
         efficiency=metrics['efficiency'],
@@ -175,31 +205,25 @@ def save_scenario_result(db, scenario_id, metrics, analysis):
     return result
 
 def get_historical_records(db, limit=100):
-    """Retrieve historical workflow records"""
     return db.query(WorkflowRecord).order_by(
         WorkflowRecord.timestamp.desc()
     ).limit(limit).all()
 
 def get_scenarios(db, limit=100):
-    """Retrieve all scenarios"""
     return db.query(Scenario).order_by(
         Scenario.created_at.desc()
     ).limit(limit).all()
 
 def get_scenario_results(db, scenario_id):
-    """Retrieve results for a specific scenario"""
     return db.query(ScenarioResult).filter(
         ScenarioResult.scenario_id == scenario_id
     ).order_by(ScenarioResult.timestamp.desc()).all()
 
 def delete_scenario(db, scenario_id):
-    """Delete a scenario and its associated results"""
-    # First delete associated results
     db.query(ScenarioResult).filter(
         ScenarioResult.scenario_id == scenario_id
     ).delete(synchronize_session=False)
 
-    # Then delete the scenario
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if scenario:
         db.delete(scenario)
@@ -208,5 +232,16 @@ def delete_scenario(db, scenario_id):
     return False
 
 def check_scenario_exists(db, name):
-    """Check if a scenario with the given name already exists"""
     return db.query(Scenario).filter(Scenario.name == name).first() is not None
+
+# Initialize database tables
+def init_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
+        raise
+
+# Initialize the database on import
+init_db()
