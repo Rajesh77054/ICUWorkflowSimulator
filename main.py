@@ -865,10 +865,6 @@ def main():
                             ['Efficiency', 'Cognitive Load', 'Burnout Risk']
                         ])
 
-                    st.line_chart(hist_df.set_index('Timestamp')[
-                        ['Efficiency', 'Cognitive Load', 'Burnout Risk']
-                    ])
-
             except Exception as e:
                 st.error(f"Error in predictive analytics: {str(e)}")
 
