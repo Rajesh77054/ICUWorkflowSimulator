@@ -447,73 +447,100 @@ def main():
                 scenario_description = st.text_area("Description")
 
                 st.markdown("##### Intervention Strategies")
-                protected_time = st.checkbox("Enable Protected Time Blocks", 
-                                          value=st.session_state.protected_time,
-                                          key="protected_time_checkbox")
-                st.session_state.protected_time = protected_time
+                protected_time = st.checkbox(
+                    "Enable Protected Time Blocks",
+                    value=st.session_state.get('protected_time', False),
+                    key="protected_time_checkbox",
+                    on_change=lambda: setattr(st.session_state, 'protected_time', st.session_state.protected_time_checkbox)
+                )
 
                 if protected_time:
-                    protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 
-                                             value=st.session_state.protected_start,
-                                             key="protected_start_slider")
-                    protected_duration = st.slider("Duration (Hours)", 1, 8, 
-                                                value=st.session_state.protected_duration,
-                                                key="protected_duration_slider")
-                    st.session_state.protected_start = protected_start
-                    st.session_state.protected_duration = protected_duration
+                    protected_start = st.slider(
+                        "Protected Time Start (Hour)",
+                        0, 23,
+                        value=st.session_state.get('protected_start', 9),
+                        key="protected_start_slider",
+                        on_change=lambda: setattr(st.session_state, 'protected_start', st.session_state.protected_start_slider)
+                    )
+                    protected_duration = st.slider(
+                        "Duration (Hours)",
+                        1, 8,
+                        value=st.session_state.get('protected_duration', 2),
+                        key="protected_duration_slider",
+                        on_change=lambda: setattr(st.session_state, 'protected_duration', st.session_state.protected_duration_slider)
+                    )
 
-                staff_distribution = st.checkbox("Adjust Provider Staffing",
-                                              value=st.session_state.staff_distribution,
-                                              key="staff_distribution_checkbox")
-                st.session_state.staff_distribution = staff_distribution
+                staff_distribution = st.checkbox(
+                    "Adjust Provider Staffing",
+                    value=st.session_state.get('staff_distribution', False),
+                    key="staff_distribution_checkbox",
+                    on_change=lambda: setattr(st.session_state, 'staff_distribution', st.session_state.staff_distribution_checkbox)
+                )
 
                 if staff_distribution:
                     st.markdown("##### Additional Provider Coverage")
 
-                    # Physician staffing adjustment
-                    add_physician = st.checkbox("Add Extra Physician Coverage",
-                                             value=st.session_state.add_physician,
-                                             key="add_physician_checkbox")
-                    st.session_state.add_physician = add_physician
+                    add_physician = st.checkbox(
+                        "Add Extra Physician Coverage",
+                        value=st.session_state.get('add_physician', False),
+                        key="add_physician_checkbox",
+                        on_change=lambda: setattr(st.session_state, 'add_physician', st.session_state.add_physician_checkbox)
+                    )
 
                     if add_physician:
-                        physician_start = st.slider("Extra Physician Start Hour", 0, 23,
-                                                 value=st.session_state.physician_start,
-                                                 key="physician_start_slider")
-                        physician_duration = st.slider("Extra Physician Duration (Hours)", 1, 12,
-                                                    value=st.session_state.physician_duration,
-                                                    key="physician_duration_slider")
-                        st.session_state.physician_start = physician_start
-                        st.session_state.physician_duration = physician_duration
+                        physician_start = st.slider(
+                            "Extra Physician Start Hour",
+                            0, 23,
+                            value=st.session_state.get('physician_start', 8),
+                            key="physician_start_slider",
+                            on_change=lambda: setattr(st.session_state, 'physician_start', st.session_state.physician_start_slider)
+                        )
+                        physician_duration = st.slider(
+                            "Extra Physician Duration (Hours)",
+                            1, 12,
+                            value=st.session_state.get('physician_duration', 4),
+                            key="physician_duration_slider",
+                            on_change=lambda: setattr(st.session_state, 'physician_duration', st.session_state.physician_duration_slider)
+                        )
 
-                    # APP staffing adjustment
-                    add_app = st.checkbox("Add Extra APP Coverage",
-                                       value=st.session_state.add_app,
-                                       key="add_app_checkbox")
-                    st.session_state.add_app = add_app
+                    add_app = st.checkbox(
+                        "Add Extra APP Coverage",
+                        value=st.session_state.get('add_app', False),
+                        key="add_app_checkbox",
+                        on_change=lambda: setattr(st.session_state, 'add_app', st.session_state.add_app_checkbox)
+                    )
 
                     if add_app:
-                        app_start = st.slider("Extra APP Start Hour", 0, 23,
-                                           value=st.session_state.app_start,
-                                           key="app_start_slider")
-                        app_duration = st.slider("Extra APP Duration (Hours)", 1, 12,
-                                              value=st.session_state.app_duration,
-                                              key="app_duration_slider")
-                        st.session_state.app_start = app_start
-                        st.session_state.app_duration = app_duration
+                        app_start = st.slider(
+                            "Extra APP Start Hour",
+                            0, 23,
+                            value=st.session_state.get('app_start', 8),
+                            key="app_start_slider",
+                            on_change=lambda: setattr(st.session_state, 'app_start', st.session_state.app_start_slider)
+                        )
+                        app_duration = st.slider(
+                            "Extra APP Duration (Hours)",
+                            1, 12,
+                            value=st.session_state.get('app_duration', 4),
+                            key="app_duration_slider",
+                            on_change=lambda: setattr(st.session_state, 'app_duration', st.session_state.app_duration_slider)
+                        )
 
-                task_bundling = st.checkbox("Enable Task Bundling (Group Similar Tasks)",
-                                         value=st.session_state.task_bundling,
-                                         key="task_bundling_checkbox")
-                st.session_state.task_bundling = task_bundling
+                task_bundling = st.checkbox(
+                    "Enable Task Bundling (Group Similar Tasks)",
+                    value=st.session_state.get('task_bundling', False),
+                    key="task_bundling_checkbox",
+                    on_change=lambda: setattr(st.session_state, 'task_bundling', st.session_state.task_bundling_checkbox)
+                )
 
                 if task_bundling:
                     bundling_efficiency = st.slider(
-                        "Time Savings from Bundling (0=None, 0.5=50% faster)", 0.0, 0.5,
-                        value=st.session_state.bundling_efficiency,
-                        key="bundling_efficiency_slider"
+                        "Time Savings from Bundling (0=None, 0.5=50% faster)",
+                        0.0, 0.5,
+                        value=st.session_state.get('bundling_efficiency', 0.2),
+                        key="bundling_efficiency_slider",
+                        on_change=lambda: setattr(st.session_state, 'bundling_efficiency', st.session_state.bundling_efficiency_slider)
                     )
-                    st.session_state.bundling_efficiency = bundling_efficiency
 
                 with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
@@ -590,31 +617,32 @@ def main():
                                         if rec.get('config'):
                                             if st.button("🚀 Quick Apply", key=f"apply_{i}", type="primary"):
                                                 config = rec['config']
-                                                # Apply configuration
+
                                                 if config.get('protected_time'):
-                                                    st.session_state.protected_time = True
-                                                    st.session_state.protected_start = config['protected_time']['start_hour']
-                                                    st.session_state.protected_duration = config['protected_time']['duration']
+                                                    st.session_state['protected_time'] = True
+                                                    st.session_state['protected_start'] = config['protected_time']['start_hour']
+                                                    st.session_state['protected_duration'] = config['protected_time']['duration']
 
                                                 if config.get('staff_distribution'):
-                                                    st.session_state.staff_distribution = True
+                                                    st.session_state['staff_distribution'] = True
                                                     staff_config = config['staff_distribution']
 
                                                     if staff_config.get('add_physician'):
-                                                        st.session_state.add_physician = True
-                                                        st.session_state.physician_start = staff_config['physician_start']
-                                                        st.session_state.physician_duration = staff_config['physician_duration']
+                                                        st.session_state['add_physician'] = True
+                                                        st.session_state['physician_start'] = staff_config['physician_start']
+                                                        st.session_state['physician_duration'] = staff_config['physician_duration']
 
                                                     if staff_config.get('add_app'):
-                                                        st.session_state.add_app = True
-                                                        st.session_state.app_start = staff_config['app_start']
-                                                        st.session_state.app_duration = staff_config['app_duration']
+                                                        st.session_state['add_app'] = True
+                                                        st.session_state['app_start'] = staff_config['app_start']
+                                                        st.session_state['app_duration'] = staff_config['app_duration']
 
                                                 if config.get('task_bundling'):
-                                                    st.session_state.task_bundling = True
-                                                    st.session_state.bundling_efficiency = config['task_bundling']['efficiency_factor']
+                                                    st.session_state['task_bundling'] = True
+                                                    st.session_state['bundling_efficiency'] = config['task_bundling']['efficiency_factor']
 
                                                 st.success("Configuration applied!")
+                                                time.sleep(0.5)  # Brief pause to ensure state is updated
                                                 st.experimental_rerun()
 
                                     st.markdown("---")
@@ -751,7 +779,6 @@ def main():
                             st.error(f"Error saving scenario: {str(e)}")
 
                 with col2:
-                    # Scenario deletion
                     if st.button("Delete Scenario"):
                         try:
                             if not scenario_name:
@@ -839,6 +866,7 @@ def main():
                             } for r in results])
 
                             st.line_chart(trend_data.set_index('timestamp'))
+
                         else:
                             st.info("No historical data available for this scenario.")
                 else:
