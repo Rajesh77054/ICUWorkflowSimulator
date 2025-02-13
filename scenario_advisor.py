@@ -19,21 +19,30 @@ class ScenarioAdvisor:
                 "recommendations": []
             }
 
-        # Format recommendations in natural language
+        # Format recommendations in natural language and include configuration
         formatted_recommendations = []
         for rec in recommendations.get("recommendations", []):
             if isinstance(rec, dict):
+                # Extract configuration for quick apply
+                config = self._extract_config_from_recommendation(rec)
+
                 # Format structured recommendation
-                formatted_rec = f"**{rec.get('suggestion', '')}**\n\n"
-                formatted_rec += f"{rec.get('description', '')}\n\n"
-                if 'risk_factors' in rec:
-                    formatted_rec += "**Risk Factors:**\n"
-                    for risk in rec['risk_factors']:
-                        formatted_rec += f"- {risk}\n"
+                formatted_rec = {
+                    "title": rec.get('suggestion', ''),
+                    "description": rec.get('description', ''),
+                    "risk_factors": rec.get('risk_factors', []),
+                    "config": config,  # Configuration for quick apply
+                    "impact": rec.get('expected_impact', {})
+                }
                 formatted_recommendations.append(formatted_rec)
             else:
                 # Handle plain text recommendations
-                formatted_recommendations.append(rec)
+                formatted_recommendations.append({
+                    "title": "Recommendation",
+                    "description": rec,
+                    "config": {},
+                    "impact": {}
+                })
 
         return {
             "status": "success",
@@ -46,6 +55,33 @@ class ScenarioAdvisor:
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)
         }
+
+    def _extract_config_from_recommendation(self, recommendation):
+        """Extract configuration parameters from AI recommendation"""
+        config = {}
+
+        # Map recommendation keywords to configuration parameters
+        if 'protected_time' in recommendation.get('suggestion', '').lower():
+            config['protected_time'] = True
+            config['protected_start'] = 9  # Default to 9 AM
+            config['protected_duration'] = 2  # Default to 2 hours
+
+        if 'staff' in recommendation.get('suggestion', '').lower():
+            config['staff_distribution'] = True
+            if 'physician' in recommendation.get('description', '').lower():
+                config['add_physician'] = True
+                config['physician_start'] = 8
+                config['physician_duration'] = 4
+            if 'app' in recommendation.get('description', '').lower():
+                config['add_app'] = True
+                config['app_start'] = 8
+                config['app_duration'] = 4
+
+        if 'bundling' in recommendation.get('suggestion', '').lower():
+            config['task_bundling'] = True
+            config['bundling_efficiency'] = 0.2  # Default 20% efficiency gain
+
+        return config
 
     def analyze_intervention_strategy(self, scenario_name, intervention_config):
         """Analyze the potential impact of intervention strategies"""

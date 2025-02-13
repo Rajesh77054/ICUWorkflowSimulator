@@ -435,13 +435,13 @@ def main():
                 staff_distribution = st.checkbox("Adjust Provider Staffing")
                 if staff_distribution:
                     st.markdown("##### Additional Provider Coverage")
-                    
+
                     # Physician staffing adjustment
                     add_physician = st.checkbox("Add Extra Physician Coverage")
                     if add_physician:
                         physician_start = st.slider("Extra Physician Start Hour", 0, 23, 8, key="phys_start")
                         physician_duration = st.slider("Extra Physician Duration (Hours)", 1, 12, 4, key="phys_duration")
-                    
+
                     # APP staffing adjustment
                     add_app = st.checkbox("Add Extra APP Coverage")
                     if add_app:
@@ -475,7 +475,7 @@ def main():
                                     'reduction_factor': 0.5
                                 }] if protected_time else None,
                                 'staff_distribution': {
-                                    'physician_ratio': physician_ratio
+                                    'physician_ratio': 1 # Placeholder, needs proper calculation
                                 } if staff_distribution else None,
                                 'task_bundling': {
                                     'efficiency_factor': 1 - bundling_efficiency
@@ -490,11 +490,69 @@ def main():
 
                             if advice['status'] == 'success':
                                 st.markdown("### AI Recommendations")
-                                for i, rec in enumerate(advice['recommendations'], 1):
-                                    st.markdown(f"{i}. {rec}")
-                                    st.markdown("---")
 
-                                st.markdown("### Expected Impact")
+                                # Store recommendations in session state for quick apply
+                                if 'current_recommendations' not in st.session_state:
+                                    st.session_state.current_recommendations = []
+                                st.session_state.current_recommendations = advice['recommendations']
+
+                                for i, rec in enumerate(advice['recommendations'], 1):
+                                    with st.container():
+                                        col1, col2 = st.columns([4, 1])
+
+                                        with col1:
+                                            st.markdown(f"#### {i}. {rec['title']}")
+                                            st.markdown(rec['description'])
+
+                                            if rec['risk_factors']:
+                                                with st.expander("Risk Factors"):
+                                                    for risk in rec['risk_factors']:
+                                                        st.markdown(f"• {risk}")
+
+                                            # Display impact metrics inline
+                                            if rec['impact']:
+                                                metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
+                                                with metrics_col1:
+                                                    if 'efficiency' in rec['impact']:
+                                                        st.metric("Efficiency", f"{rec['impact']['efficiency']:+.0f}%")
+                                                with metrics_col2:
+                                                    if 'cognitive_load' in rec['impact']:
+                                                        st.metric("Cognitive Load", f"{rec['impact']['cognitive_load']:+.0f}%")
+                                                with metrics_col3:
+                                                    if 'burnout_risk' in rec['impact']:
+                                                        st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
+
+                                        with col2:
+                                            if rec['config']:
+                                                if st.button("Quick Apply", key=f"apply_{i}"):
+                                                    config = rec['config']
+                                                    # Apply configuration
+                                                    if config.get('protected_time'):
+                                                        st.session_state.protected_time = True
+                                                        st.session_state.protected_start = config['protected_time']['start_hour']
+                                                        st.session_state.protected_duration = config['protected_time']['duration']
+
+                                                    if config.get('staff_distribution'):
+                                                        st.session_state.staff_distribution = True
+                                                        if config.get('add_physician'):
+                                                            st.session_state.add_physician = True
+                                                            st.session_state.physician_start = config['staff_distribution']['physician_start']
+                                                            st.session_state.physician_duration = config['staff_distribution']['physician_duration']
+                                                        if config.get('add_app'):
+                                                            st.session_state.add_app = True
+                                                            st.session_state.app_start = config['staff_distribution']['app_start']
+                                                            st.session_state.app_duration = config['staff_distribution']['app_duration']
+
+                                                    if config.get('task_bundling'):
+                                                        st.session_state.task_bundling = True
+                                                        st.session_state.bundling_efficiency = config['task_bundling']['efficiency_factor']
+
+                                                    st.success("Configuration applied!")
+                                                    st.experimental_rerun()
+
+                                        st.markdown("---")
+
+                                st.markdown("### Overall Impact Analysis")
                                 impact_cols = st.columns(3)
 
                                 with impact_cols[0]:
@@ -518,10 +576,33 @@ def main():
                                         help="Expected change in burnout risk"
                                     )
 
-                                st.progress(
-                                    advice['confidence'],
-                                    text=f"AI Confidence Score: {advice['confidence']:.1%}"
+                                # Enhanced confidence score display
+                                confidence_score = advice['confidence']
+                                st.markdown("### AI Confidence Assessment")
+
+                                # Create a color gradient based on confidence score
+                                color = f"rgb({int(255 * (1 - confidence_score))}, {int(255 * confidence_score)}, 0)"
+
+                                st.markdown(
+                                    f"""
+                                    <div style="
+                                        background-color: {color};
+                                        padding: 10px;
+                                        border-radius: 5px;
+                                        text-align: center;
+                                        color: white;
+                                        font-weight: bold;
+                                    ">
+                                        Confidence Score: {confidence_score:.1%}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
                                 )
+
+                                if confidence_score < 0.7:
+                                    st.warning(
+                                        "Note: Confidence score is below 70%. Consider reviewing recommendations carefully."
+                                    )
                             else:
                                 st.error(f"Unable to get AI recommendations: {advice['message']}")
 
@@ -564,7 +645,7 @@ def main():
                             # Check for existing scenario
                             db = next(get_db())
                             existing = check_scenario_exists(db, scenario_name)
-                            
+
                             if existing and not st.session_state.get('overwrite_confirmed', False):
                                 st.warning(f"Scenario '{scenario_name}' already exists. Do you want to overwrite it?")
                                 if st.button("Yes, Overwrite"):
@@ -590,7 +671,7 @@ def main():
                             if not scenario_name:
                                 st.error("Please enter a scenario name")
                                 return
-                            
+
                             db = next(get_db())
                             existing = check_scenario_exists(db, scenario_name)
                             if existing:
@@ -756,6 +837,25 @@ def main():
 
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
+
+def check_scenario_exists(db, scenario_name):
+    #Implementation for checking if a scenario already exists
+    #This function should query the database based on scenario_name
+    #and return the scenario object if found, otherwise None.
+    #Example Implementation (replace with actual database interaction)
+    for scenario in get_scenarios(db):
+        if scenario.name == scenario_name:
+            return scenario
+    return None
+
+
+def delete_scenario(db, scenario_id):
+    #Implementation to delete a scenario from the database.
+    #This function should receive the scenario ID and delete
+    #the corresponding record from the database.
+    #Example Implementation (replace with actual database interaction)
+    pass # Replace with actual database deletion logic
+
 
 if __name__ == "__main__":
     main()
