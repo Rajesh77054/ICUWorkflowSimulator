@@ -18,7 +18,6 @@ from scenario_advisor import ScenarioAdvisor # Added import
 import time
 from sqlalchemy.exc import OperationalError
 
-
 def main():
     st.set_page_config(
         page_title="ICU Workflow Dynamics Model",
@@ -40,6 +39,25 @@ def main():
 
     if 'scenario_advisor' not in st.session_state: # Added initialization
         st.session_state.scenario_advisor = ScenarioAdvisor()
+
+    # Initialize intervention strategy session states
+    if 'protected_time' not in st.session_state:
+        st.session_state.protected_time = False
+        st.session_state.protected_start = 9
+        st.session_state.protected_duration = 2
+
+    if 'staff_distribution' not in st.session_state:
+        st.session_state.staff_distribution = False
+        st.session_state.add_physician = False
+        st.session_state.physician_start = 8
+        st.session_state.physician_duration = 4
+        st.session_state.add_app = False
+        st.session_state.app_start = 8
+        st.session_state.app_duration = 4
+
+    if 'task_bundling' not in st.session_state:
+        st.session_state.task_bundling = False
+        st.session_state.bundling_efficiency = 0.2
 
     # User Type Selection
     user_type = st.radio(
@@ -429,30 +447,73 @@ def main():
                 scenario_description = st.text_area("Description")
 
                 st.markdown("##### Intervention Strategies")
-                protected_time = st.checkbox("Enable Protected Time Blocks")
-                if protected_time:
-                    protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 9)
-                    protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
+                protected_time = st.checkbox("Enable Protected Time Blocks", 
+                                          value=st.session_state.protected_time,
+                                          key="protected_time_checkbox")
+                st.session_state.protected_time = protected_time
 
-                staff_distribution = st.checkbox("Adjust Provider Staffing")
+                if protected_time:
+                    protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 
+                                             value=st.session_state.protected_start,
+                                             key="protected_start_slider")
+                    protected_duration = st.slider("Duration (Hours)", 1, 8, 
+                                                value=st.session_state.protected_duration,
+                                                key="protected_duration_slider")
+                    st.session_state.protected_start = protected_start
+                    st.session_state.protected_duration = protected_duration
+
+                staff_distribution = st.checkbox("Adjust Provider Staffing",
+                                              value=st.session_state.staff_distribution,
+                                              key="staff_distribution_checkbox")
+                st.session_state.staff_distribution = staff_distribution
+
                 if staff_distribution:
                     st.markdown("##### Additional Provider Coverage")
 
                     # Physician staffing adjustment
-                    add_physician = st.checkbox("Add Extra Physician Coverage")
+                    add_physician = st.checkbox("Add Extra Physician Coverage",
+                                             value=st.session_state.add_physician,
+                                             key="add_physician_checkbox")
+                    st.session_state.add_physician = add_physician
+
                     if add_physician:
-                        physician_start = st.slider("Extra Physician Start Hour", 0, 23, 8, key="phys_start")
-                        physician_duration = st.slider("Extra Physician Duration (Hours)", 1, 12, 4, key="phys_duration")
+                        physician_start = st.slider("Extra Physician Start Hour", 0, 23,
+                                                 value=st.session_state.physician_start,
+                                                 key="physician_start_slider")
+                        physician_duration = st.slider("Extra Physician Duration (Hours)", 1, 12,
+                                                    value=st.session_state.physician_duration,
+                                                    key="physician_duration_slider")
+                        st.session_state.physician_start = physician_start
+                        st.session_state.physician_duration = physician_duration
 
                     # APP staffing adjustment
-                    add_app = st.checkbox("Add Extra APP Coverage")
-                    if add_app:
-                        app_start = st.slider("Extra APP Start Hour", 0, 23, 8, key="app_start")
-                        app_duration = st.slider("Extra APP Duration (Hours)", 1, 12, 4, key="app_duration")
+                    add_app = st.checkbox("Add Extra APP Coverage",
+                                       value=st.session_state.add_app,
+                                       key="add_app_checkbox")
+                    st.session_state.add_app = add_app
 
-                task_bundling = st.checkbox("Enable Task Bundling (Group Similar Tasks)")
+                    if add_app:
+                        app_start = st.slider("Extra APP Start Hour", 0, 23,
+                                           value=st.session_state.app_start,
+                                           key="app_start_slider")
+                        app_duration = st.slider("Extra APP Duration (Hours)", 1, 12,
+                                              value=st.session_state.app_duration,
+                                              key="app_duration_slider")
+                        st.session_state.app_start = app_start
+                        st.session_state.app_duration = app_duration
+
+                task_bundling = st.checkbox("Enable Task Bundling (Group Similar Tasks)",
+                                         value=st.session_state.task_bundling,
+                                         key="task_bundling_checkbox")
+                st.session_state.task_bundling = task_bundling
+
                 if task_bundling:
-                    bundling_efficiency = st.slider("Time Savings from Bundling (0=None, 0.5=50% faster)", 0.0, 0.5, 0.2)
+                    bundling_efficiency = st.slider(
+                        "Time Savings from Bundling (0=None, 0.5=50% faster)", 0.0, 0.5,
+                        value=st.session_state.bundling_efficiency,
+                        key="bundling_efficiency_slider"
+                    )
+                    st.session_state.bundling_efficiency = bundling_efficiency
 
                 with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
@@ -873,7 +934,6 @@ def check_scenario_exists(db, scenario_name):
         if scenario.name == scenario_name:
             return scenario
     return None
-
 
 
 def delete_scenario(db, scenario_id):
