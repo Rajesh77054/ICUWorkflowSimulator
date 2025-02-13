@@ -191,3 +191,15 @@ def get_scenario_results(db, scenario_id):
     return db.query(ScenarioResult).filter(
         ScenarioResult.scenario_id == scenario_id
     ).order_by(ScenarioResult.timestamp.desc()).all()
+
+def delete_scenario(db, scenario_id):
+    """Delete a scenario and its associated results"""
+    # Delete associated results first (due to foreign key constraint)
+    db.query(ScenarioResult).filter(ScenarioResult.scenario_id == scenario_id).delete()
+    # Delete the scenario
+    db.query(Scenario).filter(Scenario.id == scenario_id).delete()
+    db.commit()
+
+def check_scenario_exists(db, name):
+    """Check if a scenario with given name exists"""
+    return db.query(Scenario).filter(Scenario.name == name).first()

@@ -525,41 +525,81 @@ def main():
                             else:
                                 st.error(f"Unable to get AI recommendations: {advice['message']}")
 
-                if st.button("Save Scenario"):
-                    try:
-                        # Create scenario configuration
-                        base_config = {
-                            'providers': providers,
-                            'adc': adc,
-                            'consults': consults,
-                            'critical_events': critical_events,
-                            'workload': workload['combined']
-                        }
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    if st.button("Save Scenario"):
+                        try:
+                            if not scenario_name:
+                                st.error("Please enter a scenario name")
+                                return
 
-                        interventions = {
-                            'protected_time_blocks': [{
-                                'start_hour': protected_start,
-                                'end_hour': protected_start + protected_duration,
-                                'reduction_factor': 0.5
-                            }] if protected_time else None,
-                            'staff_distribution': {
-                                'physician_ratio': physician_ratio
-                            } if staff_distribution else None,
-                            'task_bundling': {
-                                'efficiency_factor': 1 - bundling_efficiency
-                            } if task_bundling else None
-                        }
+                            # Create scenario configuration
+                            base_config = {
+                                'providers': providers,
+                                'adc': adc,
+                                'consults': consults,
+                                'critical_events': critical_events,
+                                'workload': workload['combined']
+                            }
 
-                        # Save scenario to database
-                        db = next(get_db())
-                        scenario = save_scenario(
-                            db, scenario_name, scenario_description,
-                            base_config, interventions
-                        )
-                        st.success(f"Scenario '{scenario_name}' saved successfully!")
+                            interventions = {
+                                'protected_time_blocks': [{
+                                    'start_hour': protected_start,
+                                    'end_hour': protected_start + protected_duration,
+                                    'reduction_factor': 0.5
+                                }] if protected_time else None,
+                                'staff_distribution': {
+                                    'add_physician': add_physician,
+                                    'physician_start': physician_start if add_physician else None,
+                                    'physician_duration': physician_duration if add_physician else None,
+                                    'add_app': add_app,
+                                    'app_start': app_start if add_app else None,
+                                    'app_duration': app_duration if add_app else None
+                                } if staff_distribution else None,
+                                'task_bundling': {
+                                    'efficiency_factor': 1 - bundling_efficiency
+                                } if task_bundling else None
+                            }
 
-                    except Exception as e:
-                        st.error(f"Error saving scenario: {str(e)}")
+                            # Check for existing scenario
+                            db = next(get_db())
+                            existing = check_scenario_exists(db, scenario_name)
+                            
+                            if existing and not st.session_state.get('overwrite_confirmed', False):
+                                st.warning(f"Scenario '{scenario_name}' already exists. Do you want to overwrite it?")
+                                if st.button("Yes, Overwrite"):
+                                    st.session_state.overwrite_confirmed = True
+                                    delete_scenario(db, existing.id)
+                                    scenario = save_scenario(db, scenario_name, scenario_description, base_config, interventions)
+                                    st.success(f"Scenario '{scenario_name}' updated successfully!")
+                                if st.button("No, Choose Different Name"):
+                                    st.session_state.overwrite_confirmed = False
+                                    return
+                            else:
+                                scenario = save_scenario(db, scenario_name, scenario_description, base_config, interventions)
+                                st.success(f"Scenario '{scenario_name}' saved successfully!")
+                                st.session_state.overwrite_confirmed = False
+
+                        except Exception as e:
+                            st.error(f"Error saving scenario: {str(e)}")
+
+                with col2:
+                    # Scenario deletion
+                    if st.button("Delete Scenario"):
+                        try:
+                            if not scenario_name:
+                                st.error("Please enter a scenario name")
+                                return
+                            
+                            db = next(get_db())
+                            existing = check_scenario_exists(db, scenario_name)
+                            if existing:
+                                delete_scenario(db, existing.id)
+                                st.success(f"Scenario '{scenario_name}' deleted successfully!")
+                            else:
+                                st.error(f"Scenario '{scenario_name}' not found")
+                        except Exception as e:
+                            st.error(f"Error deleting scenario: {str(e)}")
 
             with scenario_tab2:
                 st.markdown("#### Compare Scenarios")
