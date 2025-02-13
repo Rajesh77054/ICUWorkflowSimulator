@@ -497,65 +497,64 @@ def main():
                                 st.session_state.current_recommendations = advice['recommendations']
 
                                 for i, rec in enumerate(advice['recommendations'], 1):
-                                    with st.container():
-                                        col1, col2 = st.columns([4, 1])
+                                    st.markdown(f"### {i}. {rec['title']}")
+                                    st.markdown(rec['description'])
 
-                                        with col1:
-                                            st.markdown(f"#### {i}. {rec['title']}")
-                                            st.markdown(rec['description'])
+                                    # Display risk factors as bullet points
+                                    if rec.get('risk_factors', []):
+                                        st.markdown("**Risk Factors:**")
+                                        for risk in rec['risk_factors']:
+                                            st.markdown(f"• {risk}")
 
-                                            # More defensive check for risk_factors
-                                            if rec.get('risk_factors', []):  # Changed to use .get() with default empty list
-                                                with st.expander("Risk Factors"):
-                                                    for risk in rec['risk_factors']:
-                                                        st.markdown(f"• {risk}")
+                                    # Create columns for metrics and Quick Apply button
+                                    col1, col2 = st.columns([3, 1])
 
-                                            # Display impact metrics inline
-                                            if rec.get('impact', {}):  # Changed to use .get() with default empty dict
-                                                metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
-                                                with metrics_col1:
-                                                    if 'efficiency' in rec['impact']:
-                                                        st.metric("Efficiency", f"{rec['impact']['efficiency']:+.0f}%")
-                                                with metrics_col2:
-                                                    if 'cognitive_load' in rec['impact']:
-                                                        st.metric("Cognitive Load", f"{rec['impact']['cognitive_load']:+.0f}%")
-                                                with metrics_col3:
-                                                    if 'burnout_risk' in rec['impact']:
-                                                        st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
+                                    with col1:
+                                        if rec.get('impact', {}):
+                                            metrics_cols = st.columns(3)
+                                            with metrics_cols[0]:
+                                                if 'efficiency' in rec['impact']:
+                                                    st.metric("Efficiency", f"{rec['impact']['efficiency']:+.0f}%")
+                                            with metrics_cols[1]:
+                                                if 'cognitive_load' in rec['impact']:
+                                                    st.metric("Cognitive Load", f"{rec['impact']['cognitive_load']:+.0f}%")
+                                            with metrics_cols[2]:
+                                                if 'burnout_risk' in rec['impact']:
+                                                    st.metric("Burnout Risk", f"{rec['impact']['burnout_risk']:+.0f}%")
 
-                                        with col2:
-                                            # Quick Apply button
-                                            if rec.get('config'):  # Changed condition to show button when config exists
-                                                if st.button("Quick Apply", key=f"apply_{i}"):
-                                                    config = rec['config']
-                                                    # Apply configuration
-                                                    if config.get('protected_time'):
-                                                        st.session_state.protected_time = True
-                                                        st.session_state.protected_start = config['protected_time']['start_hour']
-                                                        st.session_state.protected_duration = config['protected_time']['duration']
+                                    with col2:
+                                        # Quick Apply button with improved visibility
+                                        if rec.get('config'):
+                                            if st.button("🚀 Quick Apply", key=f"apply_{i}", type="primary"):
+                                                config = rec['config']
+                                                # Apply configuration
+                                                if config.get('protected_time'):
+                                                    st.session_state.protected_time = True
+                                                    st.session_state.protected_start = config['protected_time']['start_hour']
+                                                    st.session_state.protected_duration = config['protected_time']['duration']
 
-                                                    if config.get('staff_distribution'):
-                                                        st.session_state.staff_distribution = True
-                                                        staff_config = config['staff_distribution']
+                                                if config.get('staff_distribution'):
+                                                    st.session_state.staff_distribution = True
+                                                    staff_config = config['staff_distribution']
 
-                                                        if staff_config.get('add_physician'):
-                                                            st.session_state.add_physician = True
-                                                            st.session_state.physician_start = staff_config['physician_start']
-                                                            st.session_state.physician_duration = staff_config['physician_duration']
+                                                    if staff_config.get('add_physician'):
+                                                        st.session_state.add_physician = True
+                                                        st.session_state.physician_start = staff_config['physician_start']
+                                                        st.session_state.physician_duration = staff_config['physician_duration']
 
-                                                        if staff_config.get('add_app'):
-                                                            st.session_state.add_app = True
-                                                            st.session_state.app_start = staff_config['app_start']
-                                                            st.session_state.app_duration = staff_config['app_duration']
+                                                    if staff_config.get('add_app'):
+                                                        st.session_state.add_app = True
+                                                        st.session_state.app_start = staff_config['app_start']
+                                                        st.session_state.app_duration = staff_config['app_duration']
 
-                                                    if config.get('task_bundling'):
-                                                        st.session_state.task_bundling = True
-                                                        st.session_state.bundling_efficiency = config['task_bundling']['efficiency_factor']
+                                                if config.get('task_bundling'):
+                                                    st.session_state.task_bundling = True
+                                                    st.session_state.bundling_efficiency = config['task_bundling']['efficiency_factor']
 
-                                                    st.success("Configuration applied!")
-                                                    st.experimental_rerun()
+                                                st.success("Configuration applied!")
+                                                st.experimental_rerun()
 
-                                        st.markdown("---")
+                                    st.markdown("---")
 
                                 st.markdown("### Overall Impact Analysis")
                                 impact_cols = st.columns(3)
