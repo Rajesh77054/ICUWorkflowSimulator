@@ -515,6 +515,17 @@ def main():
 
                 if st.button("Save Scenario"):
                     try:
+                        if not scenario_name:
+                            st.error("Please enter a scenario name")
+                            return
+
+                        # Check if scenario already exists
+                        db = next(get_db())
+                        existing_scenarios = get_scenarios(db)
+                        if any(s.name == scenario_name for s in existing_scenarios):
+                            st.error(f"A scenario named '{scenario_name}' already exists. Please choose a different name.")
+                            return
+
                         # Create scenario configuration
                         base_config = {
                             'providers': providers,
@@ -539,15 +550,18 @@ def main():
                         }
 
                         # Save scenario to database
-                        db = next(get_db())
                         scenario = save_scenario(
                             db, scenario_name, scenario_description,
                             base_config, interventions
                         )
                         st.success(f"Scenario '{scenario_name}' saved successfully!")
 
+                        # Refresh the scenarios in the scenario manager
+                        st.session_state.scenario_manager = ScenarioManager(st.session_state.simulator)
+
                     except Exception as e:
                         st.error(f"Error saving scenario: {str(e)}")
+                        st.exception(e)  # This will show the full traceback in development
 
             with scenario_tab2:
                 st.markdown("#### Compare Scenarios")
