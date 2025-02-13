@@ -625,14 +625,14 @@ def main():
                                     # Reset delete confirmation state
                                     st.session_state.confirm_delete = False
                                     st.session_state.delete_scenario_id = None
-                                    st.experimental_rerun()
+                                    st.rerun()
                                 except Exception as e:
                                     st.error(f"Error deleting scenario: {str(e)}")
                         with col2:
                             if st.button("No, Cancel"):
                                 st.session_state.confirm_delete = False
                                 st.session_state.delete_scenario_id = None
-                                st.experimental_rerun()
+                                st.rerun()
                 else:
                     st.info("No scenarios available.")
 
