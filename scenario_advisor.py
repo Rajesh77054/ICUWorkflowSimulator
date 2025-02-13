@@ -29,9 +29,9 @@ class ScenarioAdvisor:
                 # Calibrate and normalize impact values
                 raw_impact = rec.get('expected_impact', {})
                 calibrated_impact = {
-                    'efficiency': min(max(raw_impact.get('efficiency', 0), 0), 50) / 100,  # Cap at +50%
-                    'cognitive_load': max(min(raw_impact.get('cognitive_load', 0), 0), -30) / 100,  # Cap at -30%
-                    'burnout_risk': max(min(raw_impact.get('burnout_risk', 0), 0), -35) / 100   # Cap at -35%
+                    'efficiency': min(max(raw_impact.get('efficiency', 0), 0), 50),  # Cap at +50%
+                    'cognitive_load': max(min(raw_impact.get('cognitive_load', 0), 0), -30),  # Cap at -30%
+                    'burnout_risk': max(min(raw_impact.get('burnout_risk', 0), 0), -35)   # Cap at -35%
                 }
                 
                 formatted_rec = {
@@ -62,11 +62,11 @@ class ScenarioAdvisor:
             # Calculate average impact across all recommendations
             "impact_analysis": {
                 "efficiency": min(sum(r.get('impact', {}).get('efficiency', 0) 
-                                for r in formatted_recommendations), 0.50),  # Cap total at 50%
+                                for r in formatted_recommendations), 50),  # Cap total at 50%
                 "cognitive_load": max(sum(r.get('impact', {}).get('cognitive_load', 0) 
-                                    for r in formatted_recommendations), -0.30),  # Cap total at -30%
+                                    for r in formatted_recommendations), -30),  # Cap total at -30%
                 "burnout_risk": max(sum(r.get('impact', {}).get('burnout_risk', 0) 
-                                  for r in formatted_recommendations), -0.35)  # Cap total at -35%
+                                  for r in formatted_recommendations), -35)  # Cap total at -35%
             },
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)
