@@ -119,13 +119,24 @@ class ScenarioManager:
                     self.simulator.admission_times['consult'] *= (1 + (1 - reduction_factor))
     
     def _apply_staff_distribution(self, distribution: Dict):
-        """Apply staff distribution patterns"""
-        # Adjust provider-specific parameters based on distribution
-        if 'physician_ratio' in distribution:
-            self.simulator.provider_ratios = {
-                'physician': distribution['physician_ratio'],
-                'app': 1 - distribution['physician_ratio']
-            }
+        """Apply staff distribution patterns with time-based adjustments"""
+        current_hour = datetime.now().hour
+        
+        # Handle additional physician coverage
+        if distribution.get('add_physician'):
+            start_hour = distribution.get('physician_start', 0)
+            end_hour = (start_hour + distribution.get('physician_duration', 0)) % 24
+            
+            if start_hour <= current_hour < end_hour:
+                self.simulator.provider_ratios['physician'] += 1
+        
+        # Handle additional APP coverage
+        if distribution.get('add_app'):
+            start_hour = distribution.get('app_start', 0)
+            end_hour = (start_hour + distribution.get('app_duration', 0)) % 24
+            
+            if start_hour <= current_hour < end_hour:
+                self.simulator.provider_ratios['app'] += 1
     
     def _apply_task_bundling(self, bundling: Dict):
         """Apply task bundling strategies"""

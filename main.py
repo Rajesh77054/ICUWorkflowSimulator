@@ -432,9 +432,21 @@ def main():
                     protected_start = st.slider("Protected Time Start (Hour)", 0, 23, 9)
                     protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
 
-                staff_distribution = st.checkbox("Optimize Staff Distribution (Physician/APP Mix)")
+                staff_distribution = st.checkbox("Adjust Provider Staffing")
                 if staff_distribution:
-                    physician_ratio = st.slider("Physician Coverage (0=All APPs, 1=All Physicians)", 0.0, 1.0, 0.5)
+                    st.markdown("##### Additional Provider Coverage")
+                    
+                    # Physician staffing adjustment
+                    add_physician = st.checkbox("Add Extra Physician Coverage")
+                    if add_physician:
+                        physician_start = st.slider("Extra Physician Start Hour", 0, 23, 8, key="phys_start")
+                        physician_duration = st.slider("Extra Physician Duration (Hours)", 1, 12, 4, key="phys_duration")
+                    
+                    # APP staffing adjustment
+                    add_app = st.checkbox("Add Extra APP Coverage")
+                    if add_app:
+                        app_start = st.slider("Extra APP Start Hour", 0, 23, 8, key="app_start")
+                        app_duration = st.slider("Extra APP Duration (Hours)", 1, 12, 4, key="app_duration")
 
                 task_bundling = st.checkbox("Enable Task Bundling (Group Similar Tasks)")
                 if task_bundling:
