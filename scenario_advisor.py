@@ -26,17 +26,20 @@ class ScenarioAdvisor:
                 # Extract configuration for quick apply
                 config = self._extract_config_from_recommendation(rec)
 
-                # Format structured recommendation with default values
+                # Calibrate and normalize impact values
+                raw_impact = rec.get('expected_impact', {})
+                calibrated_impact = {
+                    'efficiency': min(max(raw_impact.get('efficiency', 0), -25), 25),  # Cap at ±25%
+                    'cognitive_load': -min(max(raw_impact.get('cognitive_load', 0), 0), 30),  # Negative values, max 30% reduction
+                    'burnout_risk': -min(max(raw_impact.get('burnout_risk', 0), 0), 35)  # Negative values, max 35% reduction
+                }
+                
                 formatted_rec = {
                     "title": rec.get('title', 'Recommendation'),
                     "description": rec.get('description', ''),
                     "risk_factors": rec.get('risk_factors', []),
                     "config": config,  # Configuration for quick apply
-                    "impact": {
-                        'efficiency': rec.get('expected_impact', {}).get('efficiency', 0),
-                        'cognitive_load': rec.get('expected_impact', {}).get('cognitive_load', 0),
-                        'burnout_risk': rec.get('expected_impact', {}).get('burnout_risk', 0)
-                    }
+                    "impact": calibrated_impact
                 }
                 formatted_recommendations.append(formatted_rec)
             else:
@@ -56,10 +59,14 @@ class ScenarioAdvisor:
         return {
             "status": "success",
             "recommendations": formatted_recommendations,
+            # Calculate average impact across all recommendations
             "impact_analysis": {
-                "efficiency": recommendations.get("impact", {}).get("efficiency", 0) / 100,
-                "cognitive_load": recommendations.get("impact", {}).get("cognitive_load", 0) / 100,
-                "burnout_risk": recommendations.get("impact", {}).get("burnout_risk", 0) / 100
+                "efficiency": sum(r.get('impact', {}).get('efficiency', 0) 
+                                for r in formatted_recommendations) / len(formatted_recommendations),
+                "cognitive_load": sum(r.get('impact', {}).get('cognitive_load', 0) 
+                                    for r in formatted_recommendations) / len(formatted_recommendations),
+                "burnout_risk": sum(r.get('impact', {}).get('burnout_risk', 0) 
+                                  for r in formatted_recommendations) / len(formatted_recommendations)
             },
             "priority": recommendations.get("priority", "medium"),
             "confidence": recommendations.get("confidence", 0.0)

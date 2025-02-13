@@ -80,8 +80,19 @@ class StateManager:
                 st.session_state['bundling_efficiency'] = config['task_bundling']['efficiency_factor']
                 logger.info("Updated task bundling settings")
 
+            # Validate state updates
+            current_state = StateManager.get_current_state()
+            expected_values = {k: v for k, v in config.items() if v is not None}
+            
+            # Verify all values were properly set
+            for key, value in expected_values.items():
+                if st.session_state.get(key) != value:
+                    logger.error(f"State update failed for {key}: expected {value}, got {st.session_state.get(key)}")
+                    return False
+            
             # Log the final state for debugging
             StateManager.log_current_state()
+            logger.info("State update completed successfully")
             return True
 
         except Exception as e:
