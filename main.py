@@ -478,8 +478,8 @@ def main():
 
                             if advice['status'] == 'success':
                                 st.markdown("### AI Recommendations")
-                                for rec in advice['recommendations']:
-                                    st.markdown(rec)
+                                for i, rec in enumerate(advice['recommendations'], 1):
+                                    st.markdown(f"{i}. {rec}")
                                     st.markdown("---")
 
                                 st.markdown("### Expected Impact")

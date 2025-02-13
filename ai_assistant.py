@@ -54,7 +54,20 @@ class AIAssistant:
     def _create_scenario_prompt(self, scenario_config, current_metrics):
         """Create prompt for scenario analysis"""
         return f"""Analyze this ICU workflow scenario and provide optimization recommendations. 
-Present your response in natural language, focusing on clear, actionable insights.
+Format your response as a JSON object with the following structure:
+{{
+    "recommendations": [
+        "A clear, actionable recommendation in natural language",
+        "Another recommendation with specific details",
+        ...
+    ],
+    "impact": {{
+        "efficiency": numeric_value_between_0_and_100,
+        "cognitive_load": numeric_value_between_0_and_100,
+        "burnout_risk": numeric_value_between_0_and_100
+    }},
+    "confidence": numeric_value_between_0_and_1
+}}
 
 Current Metrics:
 - Efficiency: {current_metrics.get('efficiency', 0)}
@@ -62,31 +75,27 @@ Current Metrics:
 - Burnout Risk: {current_metrics.get('burnout_risk', 0)}
 
 Scenario Configuration:
-{json.dumps(scenario_config, indent=2)}
-
-Provide recommendations that include:
-1. Clear, actionable recommendations written in natural language
-2. Expected impact on efficiency, cognitive load, and burnout risk (as percentages)
-3. Implementation priority and timeline
-4. Key risk factors and mitigation strategies
-5. Confidence level in recommendations (as a percentage)
-
-Format the response in JSON with natural language text in the recommendations field."""
+{json.dumps(scenario_config, indent=2)}"""
 
     def _create_intervention_prompt(self, intervention_config):
         """Create prompt for intervention analysis"""
         return f"""Analyze the potential impact of these ICU workflow interventions. 
-Present your analysis in clear, natural language focusing on practical insights.
+Format your response as a JSON object with the following structure:
+{{
+    "analysis": [
+        "A clear description of expected impacts in natural language",
+        "Implementation timeline and complexity details",
+        "Resource requirements and constraints",
+        "Expected ROI and benefits",
+        "Risk factors and mitigation strategies"
+    ],
+    "impact": {{
+        "efficiency": numeric_value_between_0_and_100,
+        "cognitive_load": numeric_value_between_0_and_100,
+        "burnout_risk": numeric_value_between_0_and_100
+    }},
+    "confidence": numeric_value_between_0_and_1
+}}
 
 Intervention Configuration:
-{json.dumps(intervention_config, indent=2)}
-
-Provide analysis including:
-1. Clear description of expected impacts written in natural language
-2. Implementation complexity and timeline
-3. Resource requirements and constraints
-4. Expected ROI and benefits
-5. Risk factors and mitigation strategies
-6. Confidence level in the analysis (as a percentage)
-
-Format the response in JSON with natural language text in the analysis field."""
+{json.dumps(intervention_config, indent=2)}"""
