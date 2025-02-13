@@ -17,6 +17,7 @@ import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor # Added import
 import time
 from sqlalchemy.exc import OperationalError
+from state_manager import StateManager  # Add this import at the top
 
 def main():
     st.set_page_config(
@@ -25,8 +26,8 @@ def main():
         layout="wide"
     )
 
-    apply_custom_styles()
-    st.title("ICU Workflow Dynamics Model")
+    # Initialize state manager
+    StateManager.initialize_session_state()
 
     # Initialize simulator and other components in session state
     if 'simulator' not in st.session_state:
@@ -451,8 +452,13 @@ def main():
                     "Enable Protected Time Blocks",
                     value=st.session_state.get('protected_time', False),
                     key="protected_time_checkbox",
-                    on_change=lambda: setattr(st.session_state, 'protected_time', st.session_state.protected_time_checkbox)
+                    help="Reduce interruptions during specific time blocks"
                 )
+
+                # Update session state and trigger UI refresh if needed
+                if protected_time != st.session_state.protected_time:
+                    st.session_state.protected_time = protected_time
+                    st.experimental_rerun()
 
                 if protected_time:
                     protected_start = st.slider(
@@ -460,32 +466,47 @@ def main():
                         0, 23,
                         value=st.session_state.get('protected_start', 9),
                         key="protected_start_slider",
-                        on_change=lambda: setattr(st.session_state, 'protected_start', st.session_state.protected_start_slider)
+                        help="Start hour for protected time block"
                     )
                     protected_duration = st.slider(
                         "Duration (Hours)",
                         1, 8,
                         value=st.session_state.get('protected_duration', 2),
                         key="protected_duration_slider",
-                        on_change=lambda: setattr(st.session_state, 'protected_duration', st.session_state.protected_duration_slider)
+                        help="Length of protected time block"
                     )
+
+                    # Update session state if values changed
+                    if (protected_start != st.session_state.protected_start or 
+                        protected_duration != st.session_state.protected_duration):
+                        st.session_state.protected_start = protected_start
+                        st.session_state.protected_duration = protected_duration
 
                 staff_distribution = st.checkbox(
                     "Adjust Provider Staffing",
                     value=st.session_state.get('staff_distribution', False),
                     key="staff_distribution_checkbox",
-                    on_change=lambda: setattr(st.session_state, 'staff_distribution', st.session_state.staff_distribution_checkbox)
+                    help="Modify staffing patterns"
                 )
+
+                if staff_distribution != st.session_state.staff_distribution:
+                    st.session_state.staff_distribution = staff_distribution
+                    st.experimental_rerun()
 
                 if staff_distribution:
                     st.markdown("##### Additional Provider Coverage")
 
+                    # Physician staffing
                     add_physician = st.checkbox(
                         "Add Extra Physician Coverage",
                         value=st.session_state.get('add_physician', False),
                         key="add_physician_checkbox",
-                        on_change=lambda: setattr(st.session_state, 'add_physician', st.session_state.add_physician_checkbox)
+                        help="Add additional physician coverage"
                     )
+
+                    if add_physician != st.session_state.add_physician:
+                        st.session_state.add_physician = add_physician
+                        st.experimental_rerun()
 
                     if add_physician:
                         physician_start = st.slider(
@@ -493,22 +514,32 @@ def main():
                             0, 23,
                             value=st.session_state.get('physician_start', 8),
                             key="physician_start_slider",
-                            on_change=lambda: setattr(st.session_state, 'physician_start', st.session_state.physician_start_slider)
+                            help="Start hour for additional physician coverage"
                         )
                         physician_duration = st.slider(
                             "Extra Physician Duration (Hours)",
                             1, 12,
                             value=st.session_state.get('physician_duration', 4),
                             key="physician_duration_slider",
-                            on_change=lambda: setattr(st.session_state, 'physician_duration', st.session_state.physician_duration_slider)
+                            help="Duration of additional physician coverage"
                         )
 
+                        if (physician_start != st.session_state.physician_start or 
+                            physician_duration != st.session_state.physician_duration):
+                            st.session_state.physician_start = physician_start
+                            st.session_state.physician_duration = physician_duration
+
+                    # APP staffing
                     add_app = st.checkbox(
                         "Add Extra APP Coverage",
                         value=st.session_state.get('add_app', False),
                         key="add_app_checkbox",
-                        on_change=lambda: setattr(st.session_state, 'add_app', st.session_state.add_app_checkbox)
+                        help="Add additional APP coverage"
                     )
+
+                    if add_app != st.session_state.add_app:
+                        st.session_state.add_app = add_app
+                        st.experimental_rerun()
 
                     if add_app:
                         app_start = st.slider(
@@ -516,22 +547,31 @@ def main():
                             0, 23,
                             value=st.session_state.get('app_start', 8),
                             key="app_start_slider",
-                            on_change=lambda: setattr(st.session_state, 'app_start', st.session_state.app_start_slider)
+                            help="Start hour for additional APP coverage"
                         )
                         app_duration = st.slider(
                             "Extra APP Duration (Hours)",
                             1, 12,
                             value=st.session_state.get('app_duration', 4),
                             key="app_duration_slider",
-                            on_change=lambda: setattr(st.session_state, 'app_duration', st.session_state.app_duration_slider)
+                            help="Duration of additional APP coverage"
                         )
+
+                        if (app_start != st.session_state.app_start or 
+                            app_duration != st.session_state.app_duration):
+                            st.session_state.app_start = app_start
+                            st.session_state.app_duration = app_duration
 
                 task_bundling = st.checkbox(
                     "Enable Task Bundling (Group Similar Tasks)",
                     value=st.session_state.get('task_bundling', False),
                     key="task_bundling_checkbox",
-                    on_change=lambda: setattr(st.session_state, 'task_bundling', st.session_state.task_bundling_checkbox)
+                    help="Group similar tasks to improve efficiency"
                 )
+
+                if task_bundling != st.session_state.task_bundling:
+                    st.session_state.task_bundling = task_bundling
+                    st.experimental_rerun()
 
                 if task_bundling:
                     bundling_efficiency = st.slider(
@@ -539,8 +579,11 @@ def main():
                         0.0, 0.5,
                         value=st.session_state.get('bundling_efficiency', 0.2),
                         key="bundling_efficiency_slider",
-                        on_change=lambda: setattr(st.session_state, 'bundling_efficiency', st.session_state.bundling_efficiency_slider)
+                        help="Expected efficiency gain from task bundling"
                     )
+
+                    if bundling_efficiency != st.session_state.bundling_efficiency:
+                        st.session_state.bundling_efficiency = bundling_efficiency
 
                 with st.expander("🤖 AI Assistant Recommendations", expanded=True):
                     if st.button("Get AI Recommendations"):
