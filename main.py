@@ -66,7 +66,7 @@ def main():
             # ICU Census
             adc = st.number_input(
                 "ICU Census (ADC)",
-                0, 16, 8, 1,
+                0, 16, 10, 1,
                 help="Average Daily Census - Primary ICU workload driver"
             )
             st.caption("ADC determines base workload and scales interruption frequencies")
@@ -175,13 +175,13 @@ def main():
                 transfer_time = st.slider("Duration (minutes)", 1, 20, 8, key="transfer_duration")
 
         # Critical Events Configuration (Bottom Section)
-        st.markdown("### Critical Events")
+        st.markdown("### Events")
         ce_col1, ce_col2, ce_col3 = st.columns(3)
 
         with ce_col1:
             admissions = st.number_input(
                 "New Admissions (per shift)",
-                0, 20, 3,
+                0, 20, 4,
                 help="Expected new ICU admissions"
             )
             simple_admission_time = st.number_input(
