@@ -14,6 +14,7 @@ from ml_predictor import MLPredictor
 from scenario_manager import ScenarioManager
 from models import save_scenario, save_scenario_result, get_scenarios, get_scenario_results
 import plotly.graph_objects as go
+from scenario_advisor import ScenarioAdvisor # Added import
 
 
 def main():
@@ -34,6 +35,9 @@ def main():
     if 'predictor' not in st.session_state:
         st.session_state.predictor = MLPredictor()
         st.session_state.model_trained = False
+
+    if 'scenario_advisor' not in st.session_state: # Added initialization
+        st.session_state.scenario_advisor = ScenarioAdvisor()
 
     # User Type Selection
     user_type = st.radio(
@@ -435,6 +439,63 @@ def main():
                 task_bundling = st.checkbox("Enable Task Bundling")
                 if task_bundling:
                     bundling_efficiency = st.slider("Expected Efficiency Gain", 0.0, 0.5, 0.2)
+
+                with st.expander("🤖 AI Assistant Recommendations", expanded=True): # Added AI Assistant Section
+                    if st.button("Get AI Recommendations"):
+                        current_metrics = {
+                            'efficiency': efficiency,
+                            'cognitive_load': cognitive_load,
+                            'burnout_risk': burnout_risk,
+                            'workload': workload['combined']
+                        }
+
+                        scenario_config = {
+                            'base_config': {
+                                'providers': providers,
+                                'adc': adc,
+                                'consults': consults,
+                                'critical_events': critical_events
+                            },
+                            'interventions': {
+                                'protected_time_blocks': [{
+                                    'start_hour': protected_start,
+                                    'end_hour': protected_start + protected_duration,
+                                    'reduction_factor': 0.5
+                                }] if protected_time else None,
+                                'staff_distribution': {
+                                    'physician_ratio': physician_ratio
+                                } if staff_distribution else None,
+                                'task_bundling': {
+                                    'efficiency_factor': 1 - bundling_efficiency
+                                } if task_bundling else None
+                            }
+                        }
+
+                        with st.spinner("Getting AI recommendations..."):
+                            advice = st.session_state.scenario_advisor.get_optimization_advice(
+                                scenario_config, current_metrics
+                            )
+
+                            if advice['status'] == 'success':
+                                st.markdown("#### AI Recommendations")
+                                for i, rec in enumerate(advice['recommendations'], 1):
+                                    st.markdown(f"{i}. {rec}")
+
+                                st.markdown("#### Expected Impact")
+                                impact_df = pd.DataFrame({
+                                    'Metric': ['Efficiency', 'Cognitive Load', 'Burnout Risk'],
+                                    'Expected Impact': [
+                                        f"{advice['impact_analysis']['efficiency']:+.1%}",
+                                        f"{advice['impact_analysis']['cognitive_load']:+.1%}",
+                                        f"{advice['impact_analysis']['burnout_risk']:+.1%}"
+                                    ]
+                                })
+                                st.table(impact_df)
+
+                                st.markdown(f"**Confidence Score:** {advice['confidence']:.1%}")
+                            else:
+                                st.error(f"Unable to get AI recommendations: {advice['message']}")
+
 
                 if st.button("Save Scenario"):
                     try:
