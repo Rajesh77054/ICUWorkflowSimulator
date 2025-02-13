@@ -28,7 +28,7 @@ class ScenarioAdvisor:
 
                 # Format structured recommendation with default values
                 formatted_rec = {
-                    "title": rec.get('suggestion', 'Recommendation'),
+                    "title": rec.get('title', 'Recommendation'),
                     "description": rec.get('description', ''),
                     "risk_factors": rec.get('risk_factors', []),
                     "config": config,  # Configuration for quick apply
@@ -69,7 +69,7 @@ class ScenarioAdvisor:
         """Extract configuration parameters from AI recommendation"""
         config = {}
 
-        suggestion = recommendation.get('suggestion', '').lower()
+        suggestion = recommendation.get('title', '').lower()
         description = recommendation.get('description', '').lower()
 
         # Map recommendation keywords to configuration parameters
