@@ -736,7 +736,7 @@ def main():
                     )
 
                 st.markdown("#### Model Insights")
-                insights_cols = st.columns(3)
+                insights_cols = st.columns(2)  # Changed to 2 columns instead of 3
 
                 with insights_cols[0]:
                     st.metric(
@@ -746,13 +746,6 @@ def main():
                     )
 
                 with insights_cols[1]:
-                    st.metric(
-                        "Predicted Provider Load",
-                        f"{predictions['predicted_provider_load']:.0%}",
-                        help="Projected provider utilization based on current patterns"
-                    )
-
-                with insights_cols[2]:
                     st.metric(
                         "Predicted Burnout Risk",
                         f"{predictions['predicted_burnout']:.0%}",
