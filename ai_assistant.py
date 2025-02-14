@@ -83,17 +83,27 @@ class AIAssistant:
             context_parts = []
 
             if current_metrics:
-                context_parts.append(f"""Current ICU Metrics:
-                - Efficiency: {current_metrics.get('efficiency', 'N/A'):.1%}
-                - Cognitive Load: {current_metrics.get('cognitive_load', 'N/A'):.1f}%
-                - Burnout Risk: {current_metrics.get('burnout_risk', 'N/A'):.1%}""")
+                efficiency = current_metrics.get('efficiency')
+                cognitive_load = current_metrics.get('cognitive_load')
+                burnout_risk = current_metrics.get('burnout_risk')
+                
+                metrics_str = "Current ICU Metrics:\n"
+                if efficiency is not None:
+                    metrics_str += f"- Efficiency: {efficiency*100:.1f}%\n"
+                if cognitive_load is not None:
+                    metrics_str += f"- Cognitive Load: {cognitive_load:.1f}%\n"
+                if burnout_risk is not None:
+                    metrics_str += f"- Burnout Risk: {burnout_risk*100:.1f}%"
+                context_parts.append(metrics_str)
 
             if workflow_config:
-                context_parts.append(f"""Current Workflow Configuration:
-                - ICU Census (ADC): {workflow_config.get('adc', 'N/A')}
-                - Providers: {workflow_config.get('providers', 'N/A')}
-                - Consults per Shift: {workflow_config.get('consults', 'N/A')}
-                - Critical Events per Week: {workflow_config.get('critical_events', 'N/A')}""")
+                workflow_str = "Current Workflow Configuration:\n"
+                for key in ['adc', 'providers', 'consults', 'critical_events']:
+                    value = workflow_config.get(key)
+                    if value is not None:
+                        label = key.replace('_', ' ').title()
+                        workflow_str += f"- {label}: {value}\n"
+                context_parts.append(workflow_str)
 
             if active_scenario:
                 context_parts.append(f"""Active Scenario:
