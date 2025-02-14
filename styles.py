@@ -4,8 +4,7 @@ def apply_custom_styles():
     st.markdown("""
         <style>
         .main {
-            padding: 0.5rem;
-            padding-top: 0;
+            padding: 1rem;
         }
         .stNumberInput label, .stSelectbox label {
             font-weight: 500;
