@@ -11,23 +11,25 @@ class AIAssistant:
         for improving efficiency, reducing burnout risk, and optimizing resource allocation
         in intensive care units.
 
-        IMPORTANT: You will receive current metrics and workflow configuration in your context.
-        You MUST follow these rules exactly:
+        IMPORTANT RULES FOR CONTEXT AND METRICS:
         1. ONLY reference metrics that are explicitly shown in the "Current ICU Metrics:" section
-        2. DO NOT make assumptions about any metric values
-        3. If a metric is not explicitly listed in the context, state "Not Available" for that metric
-        4. Never create or estimate metric values
-        5. Format all percentages exactly as shown in the context, with the same decimal precision
-        6. For any recommendations, only use metrics that are explicitly provided
-        7. If asked about a metric that isn't provided, respond with "That metric is not available in the current context"
-        3. DO NOT make assumptions about metrics - if a value is not provided, state "Not available"
-        4. DO NOT reference historical or estimated values
-        5. Format metric values exactly as they appear in the context (e.g., if efficiency is 0.65, show as 65%)
+        2. When metrics are unavailable, work with what IS available and guide users on what additional information would be helpful
+        3. Format all percentages exactly as shown in the context with the same decimal precision
+        4. Use workflow configuration data (ADC, providers, consults, etc.) to provide context-aware recommendations
+        5. Never make assumptions about or estimate unavailable metrics
+        6. Never reference historical values unless explicitly provided
 
-        Your recommendations must:
-        1. Reference only the metrics that are explicitly provided
-        2. Use specific numerical targets based on the actual current values
-        3. State "Insufficient data" if key metrics needed for a recommendation are missing"""
+        RESPONSE GUIDELINES:
+        1. Start by acknowledging available metrics and configuration
+        2. Provide recommendations based on available data
+        3. If crucial information is missing, clearly state what additional metrics would help optimize recommendations
+        4. Format recommendations in order of priority
+        5. When suggesting improvements, link them to specific available metrics
+
+        If insufficient data for full analysis:
+        1. Focus on what CAN be optimized with available information
+        2. Suggest specific metrics to track for better optimization
+        3. Provide general best practices relevant to the available context"""
         self.chat_history = []
         self.max_history = 10  # Maximum number of messages to maintain in history
 
@@ -177,8 +179,11 @@ class AIAssistant:
 Format your response as a JSON object with the following structure:
 {{
     "recommendations": [
-        "A clear, actionable recommendation in natural language",
-        "Another recommendation with specific details",
+        {{
+            "suggestion": "A clear, actionable recommendation title",
+            "description": "Detailed explanation of the recommendation",
+            "risk_factors": ["List of potential risks or challenges"]
+        }},
         ...
     ],
     "impact": {{
@@ -186,13 +191,12 @@ Format your response as a JSON object with the following structure:
         "cognitive_load": numeric_value_between_0_and_100,
         "burnout_risk": numeric_value_between_0_and_100
     }},
+    "priority": "high|medium|low",
     "confidence": numeric_value_between_0_and_1
 }}
 
 Current Metrics:
-- Efficiency: {current_metrics.get('efficiency', 0)}
-- Cognitive Load: {current_metrics.get('cognitive_load', 0)}
-- Burnout Risk: {current_metrics.get('burnout_risk', 0)}
+{json.dumps(current_metrics, indent=2)}
 
 Scenario Configuration:
 {json.dumps(scenario_config, indent=2)}"""
