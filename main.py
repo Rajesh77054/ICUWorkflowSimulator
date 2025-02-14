@@ -16,7 +16,6 @@ from models import save_scenario, save_scenario_result, get_scenarios, get_scena
 import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor
 
-
 def main():
     st.set_page_config(page_title="ICU Workflow Dynamics Model",
                        page_icon="🏥",
@@ -45,15 +44,32 @@ def main():
             with st.chat_message("user"):
                 st.markdown(prompt)
 
-            # Get AI response
+            # Get AI response with enhanced context
             current_metrics = {
                 'efficiency': efficiency if 'efficiency' in locals() else None,
                 'cognitive_load': cognitive_load if 'cognitive_load' in locals() else None,
                 'burnout_risk': burnout_risk if 'burnout_risk' in locals() else None
             }
 
+            # Gather current workflow configuration
+            workflow_config = {
+                'adc': adc if 'adc' in locals() else None,
+                'providers': providers if 'providers' in locals() else None,
+                'consults': consults if 'consults' in locals() else None,
+                'critical_events': critical_events if 'critical_events' in locals() else None
+            }
+
+            # Get active scenario if available
+            active_scenario = None
+            if 'current_scenario' in st.session_state:
+                active_scenario = st.session_state.current_scenario
+
             response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
-                prompt, current_metrics)
+                prompt, 
+                current_metrics=current_metrics,
+                workflow_config=workflow_config,
+                active_scenario=active_scenario
+            )
 
             # Add AI response to chat history
             if response["status"] == "success":
@@ -366,7 +382,7 @@ def main():
                         "Cognitive Load",
                         f"{cognitive_load:.0f}%",
                         help="Mental workload based on current conditions")
-                
+
                 with metrics_cols[3]:
                     st.metric(
                         "Burnout Risk",
@@ -890,8 +906,8 @@ def main():
                         file_name=f'workflow_analysis_{current_time}.csv',
                         mime='text/csv')
 
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+    except Exception as e:        st.error(f"An error occurred: {str(e)}")
+
 
 
 if __name__ == "__main__":

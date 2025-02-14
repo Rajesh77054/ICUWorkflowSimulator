@@ -53,19 +53,37 @@ class AIAssistant:
                 "confidence": 0.0
             }
 
-    def chat_with_user(self, user_message, current_metrics=None):
+    def chat_with_user(self, user_message, current_metrics=None, workflow_config=None, active_scenario=None):
         """Handle interactive chat with users"""
         try:
             # Prepare messages including chat history and current context
             messages = [{"role": "system", "content": self.system_context}]
 
-            # Add relevant context about current metrics if available
+            # Add comprehensive context about current application state
+            context_parts = []
+
             if current_metrics:
-                context = f"""Current ICU Metrics:
+                context_parts.append(f"""Current ICU Metrics:
                 - Efficiency: {current_metrics.get('efficiency', 'N/A')}
                 - Cognitive Load: {current_metrics.get('cognitive_load', 'N/A')}
-                - Burnout Risk: {current_metrics.get('burnout_risk', 'N/A')}"""
-                messages.append({"role": "system", "content": context})
+                - Burnout Risk: {current_metrics.get('burnout_risk', 'N/A')}""")
+
+            if workflow_config:
+                context_parts.append(f"""Current Workflow Configuration:
+                - ICU Census (ADC): {workflow_config.get('adc', 'N/A')}
+                - Providers: {workflow_config.get('providers', 'N/A')}
+                - Consults per Shift: {workflow_config.get('consults', 'N/A')}
+                - Critical Events per Week: {workflow_config.get('critical_events', 'N/A')}""")
+
+            if active_scenario:
+                context_parts.append(f"""Active Scenario:
+                - Name: {active_scenario.get('name', 'N/A')}
+                - Description: {active_scenario.get('description', 'N/A')}
+                - Interventions: {', '.join(active_scenario.get('interventions', {}).keys())}""")
+
+            if context_parts:
+                full_context = "\n\n".join(context_parts)
+                messages.append({"role": "system", "content": full_context})
 
             # Add chat history
             messages.extend(self.chat_history)
