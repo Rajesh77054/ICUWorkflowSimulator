@@ -24,9 +24,8 @@ def main():
     apply_custom_styles()
     st.title("ICU Workflow Dynamics Model")
 
-    # Add Chat Interface
-    with st.sidebar:
-        st.markdown("### 💬 AI Assistant")
+    # Add Chat Interface - collapsed by default
+    with st.sidebar.expander("💬 AI Assistant", expanded=False):
         if 'chat_messages' not in st.session_state:
             st.session_state.chat_messages = []
 
@@ -121,7 +120,7 @@ def main():
         help="Choose your role to see relevant metrics and insights")
 
     # Workflow Configuration Section
-    with st.expander("⚙️ Workflow Configuration", expanded=True):
+    with st.expander("⚙️ Workflow Configuration", expanded=False):
         col1, col2 = st.columns(2)
 
         # Base Workload Components (Left Column)
