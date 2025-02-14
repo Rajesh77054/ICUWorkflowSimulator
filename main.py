@@ -25,56 +25,6 @@ def main():
     apply_custom_styles()
     st.title("ICU Workflow Dynamics Model")
 
-    # Add Chat Interface
-    with st.sidebar:
-        st.markdown("### 💬 AI Assistant")
-        if 'chat_messages' not in st.session_state:
-            st.session_state.chat_messages = []
-
-        # Display chat messages
-        for message in st.session_state.chat_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Chat input
-        if prompt := st.chat_input("Ask me about workflow optimization..."):
-            # Add user message to chat history
-            st.session_state.chat_messages.append({"role": "user", "content": prompt})
-
-            # Display user message
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            # Get AI response
-            current_metrics = {
-                'efficiency': efficiency if 'efficiency' in locals() else None,
-                'cognitive_load': cognitive_load if 'cognitive_load' in locals() else None,
-                'burnout_risk': burnout_risk if 'burnout_risk' in locals() else None
-            }
-
-            response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
-                prompt, current_metrics)
-
-            # Add AI response to chat history
-            if response["status"] == "success":
-                st.session_state.chat_messages.append({
-                    "role": "assistant",
-                    "content": response["response"]
-                })
-
-                # Display AI response
-                with st.chat_message("assistant"):
-                    st.markdown(response["response"])
-            else:
-                with st.chat_message("assistant"):
-                    st.error("I apologize, but I encountered an error. Please try again.")
-
-        # Clear chat history button
-        if st.button("Clear Chat History"):
-            st.session_state.chat_messages = []
-            st.session_state.scenario_advisor.ai_assistant.clear_chat_history()
-            st.rerun()
-
     # Initialize simulator and other components in session state
     if 'simulator' not in st.session_state:
         st.session_state.simulator = WorkflowSimulator()
@@ -88,6 +38,10 @@ def main():
     if 'scenario_advisor' not in st.session_state:
         st.session_state.scenario_advisor = ScenarioAdvisor()
 
+    # Initialize session state for chat
+    if 'chat_messages' not in st.session_state:
+        st.session_state.chat_messages = []
+
     # Initialize session state variables for scenario management
     if 'confirm_delete' not in st.session_state:
         st.session_state.confirm_delete = False
@@ -97,6 +51,56 @@ def main():
         st.session_state.confirm_overwrite = False
         st.session_state.overwrite_scenario_name = None
         st.session_state.overwrite_data = None
+
+    # Add Chat Interface in a container
+    with st.expander("💬 AI Assistant", expanded=False):
+        chat_col1, chat_col2 = st.columns([5, 1])
+
+        with chat_col1:
+            # Display chat messages
+            for message in st.session_state.chat_messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+            # Chat input
+            if prompt := st.chat_input("Ask me about workflow optimization..."):
+                # Add user message to chat history
+                st.session_state.chat_messages.append({"role": "user", "content": prompt})
+
+                # Display user message
+                with st.chat_message("user"):
+                    st.markdown(prompt)
+
+                # Get AI response
+                current_metrics = {
+                    'efficiency': efficiency if 'efficiency' in locals() else None,
+                    'cognitive_load': cognitive_load if 'cognitive_load' in locals() else None,
+                    'burnout_risk': burnout_risk if 'burnout_risk' in locals() else None
+                }
+
+                response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
+                    prompt, current_metrics)
+
+                # Add AI response to chat history
+                if response["status"] == "success":
+                    st.session_state.chat_messages.append({
+                        "role": "assistant",
+                        "content": response["response"]
+                    })
+
+                    # Display AI response
+                    with st.chat_message("assistant"):
+                        st.markdown(response["response"])
+                else:
+                    with st.chat_message("assistant"):
+                        st.error("I apologize, but I encountered an error. Please try again.")
+
+        with chat_col2:
+            # Clear chat history button
+            if st.button("Clear Chat", key="clear_chat"):
+                st.session_state.chat_messages = []
+                st.session_state.scenario_advisor.ai_assistant.clear_chat_history()
+                st.rerun()
 
     # User Type Selection
     user_type = st.radio(
