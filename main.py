@@ -301,15 +301,19 @@ def main():
                     "Interruptions/Provider",
                     f"{interrupts_per_provider:.0f}/shift",
                     help="Direct measure of workflow disruptions per provider")
+                
             with metrics_cols[1]:
-                st.metric(
-                    "Time Lost to Interruptions",
-                    f"{time_lost:.0f} min",
-                    help="Total organizational time lost to interruptions")
+                if time_lost is not None:
+                    st.metric(
+                        "Time Lost to Interruptions",
+                        f"{time_lost:.0f} min",
+                        help="Total organizational time lost to interruptions")
+                        
             with metrics_cols[2]:
                 st.metric("Provider Efficiency",
                           f"{efficiency:.0%}",
                           help="Current workflow efficiency")
+                          
             with metrics_cols[3]:
                 st.metric("Cognitive Load",
                           f"{cognitive_load:.0f}%",
