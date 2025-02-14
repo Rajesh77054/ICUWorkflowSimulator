@@ -10,7 +10,7 @@ class AIAssistant:
         Your role is to analyze workflow scenarios and provide actionable recommendations
         for improving efficiency, reducing burnout risk, and optimizing resource allocation
         in intensive care units.
-        
+
         IMPORTANT: You will receive current metrics and workflow configuration in your context.
         You MUST follow these rules exactly:
         1. ONLY reference metrics that are explicitly shown in the "Current ICU Metrics:" section
@@ -23,7 +23,7 @@ class AIAssistant:
         3. DO NOT make assumptions about metrics - if a value is not provided, state "Not available"
         4. DO NOT reference historical or estimated values
         5. Format metric values exactly as they appear in the context (e.g., if efficiency is 0.65, show as 65%)
-        
+
         Your recommendations must:
         1. Reference only the metrics that are explicitly provided
         2. Use specific numerical targets based on the actual current values
@@ -84,7 +84,7 @@ class AIAssistant:
                 efficiency = current_metrics.get('efficiency')
                 cognitive_load = current_metrics.get('cognitive_load')
                 burnout_risk = current_metrics.get('burnout_risk')
-                
+
                 # Only include metrics that have valid numerical values
                 metrics_str = "Current ICU Metrics:\n"
                 metrics_data = {
@@ -92,7 +92,7 @@ class AIAssistant:
                     'Cognitive Load': cognitive_load if isinstance(cognitive_load, (int, float)) else None,
                     'Burnout Risk': burnout_risk if isinstance(burnout_risk, (int, float)) else None
                 }
-                
+
                 # Build metrics string only with valid values
                 metrics_lines = []
                 for label, value in metrics_data.items():
@@ -101,12 +101,12 @@ class AIAssistant:
                             metrics_lines.append(f"- {label}: {value:.1f}%")
                         else:
                             metrics_lines.append(f"- {label}: {value*100:.1f}%")
-                
+
                 if metrics_lines:
                     metrics_str += "\n".join(metrics_lines)
                 else:
                     metrics_str += "No metrics currently available"
-                    
+
                 context_parts.append(metrics_str)
 
             if workflow_config:
