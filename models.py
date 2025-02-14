@@ -3,6 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.pool import QueuePool
 import os
+import time
 from datetime import datetime
 import logging
 from urllib.parse import urlparse, parse_qs
@@ -14,7 +15,10 @@ logger = logging.getLogger(__name__)
 
 # Get database URL from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL')
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set")
+
+if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 # Parse the URL to add SSL requirements if not present
