@@ -294,32 +294,7 @@ def main():
             # Core Workflow Metrics Section
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
                 st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
-                # Create columns for metrics
-                metrics_cols = st.columns(4)
-                with metrics_cols[0]:
-                    st.metric(
-                        "Interruptions/Provider",
-                        f"{interrupts_per_provider:.0f}/shift",
-                        help="Direct measure of workflow disruptions per provider")
                 
-                with metrics_cols[1]:
-                    st.metric(
-                        "Time Lost to Interruptions",
-                        f"{time_lost:.0f} min",
-                        help="Total organizational time lost to interruptions")
-                        
-                with metrics_cols[2]:
-                    st.metric("Provider Efficiency",
-                            f"{efficiency:.0%}",
-                            help="Current workflow efficiency")
-                          
-                with metrics_cols[3]:
-                    st.metric("Cognitive Load",
-                            f"{cognitive_load:.0f}%",
-                            help="Mental workload based on current conditions")
-
-                # Create columns for metrics
-                metrics_cols = st.columns(4)
                 with metrics_cols[0]:
                     st.metric(
                         "Interruptions/Provider",
