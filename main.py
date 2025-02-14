@@ -304,8 +304,7 @@ def main():
             with metrics_cols[1]:
                 st.metric(
                     "Time Lost to Interruptions",
-                    f"{time_lost:.0f} min"
-                    if time_lost is not None else "0.0 min",
+                    f"{time_lost:.0f} min",
                     help="Total organizational time lost to interruptions")
             with metrics_cols[2]:
                 st.metric("Provider Efficiency",
