@@ -297,10 +297,11 @@ def main():
 
             metrics_cols = st.columns(4)
             with metrics_cols[0]:
-                st.metric(
-                    "Interruptions/Provider",
-                    f"{interrupts_per_provider:.0f}/shift",
-                    help="Direct measure of workflow disruptions per provider")
+                if interrupts_per_provider is not None:
+                    st.metric(
+                        "Interruptions/Provider",
+                        f"{interrupts_per_provider:.0f}/shift",
+                        help="Direct measure of workflow disruptions per provider")
                 
             with metrics_cols[1]:
                 if time_lost is not None:
@@ -310,13 +311,15 @@ def main():
                         help="Total organizational time lost to interruptions")
                         
             with metrics_cols[2]:
-                st.metric("Provider Efficiency",
-                          f"{efficiency:.0%}",
-                          help="Current workflow efficiency")
+                if efficiency is not None:
+                    st.metric("Provider Efficiency",
+                            f"{efficiency:.0%}",
+                            help="Current workflow efficiency")
                           
             with metrics_cols[3]:
-                st.metric("Cognitive Load",
-                          f"{cognitive_load:.0f}%",
+                if cognitive_load is not None:
+                    st.metric("Cognitive Load",
+                            f"{cognitive_load:.0f}%",
                           help="Mental workload based on current conditions")
 
             # Visual Timeline
