@@ -357,19 +357,21 @@ def main():
 
                 with metrics_cols[1]:
                     st.metric(
-                        "Time Lost to Interruptions",
-                        f"{time_lost:.0f} min",
-                        help="Total organizational time lost to interruptions")
+                        "Provider Efficiency",
+                        f"{efficiency:.0%}",
+                        help="Current workflow efficiency")
 
                 with metrics_cols[2]:
-                    st.metric("Provider Efficiency",
-                              f"{efficiency:.0%}",
-                              help="Current workflow efficiency")
-
+                    st.metric(
+                        "Cognitive Load",
+                        f"{cognitive_load:.0f}%",
+                        help="Mental workload based on current conditions")
+                
                 with metrics_cols[3]:
-                    st.metric("Cognitive Load",
-                              f"{cognitive_load:.0f}%",
-                              help="Mental workload based on current conditions")
+                    st.metric(
+                        "Burnout Risk",
+                        f"{burnout_risk:.0%}",
+                        help="Risk of provider burnout based on current conditions")
 
                 # Visual Timeline
                 st.plotly_chart(create_workload_timeline(
