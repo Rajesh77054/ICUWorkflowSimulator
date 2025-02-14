@@ -344,8 +344,7 @@ def main():
                 st.markdown("### Current Shift Overview")
 
                 # Core Workflow Metrics Section
-                st.markdown(section_header("Core Workflow Metrics"),
-                            unsafe_allow_html=True)
+                st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
 
                 # Create columns for metrics
                 metrics_cols = st.columns(4)
