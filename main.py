@@ -371,6 +371,15 @@ def main():
                 st.metric("Efficiency",
                           f"{physician_efficiency:.0%}",
                           help="Physician-specific workflow efficiency")
+                physician_cognitive_load = st.session_state.simulator.calculate_cognitive_load(
+                    interrupts_per_provider,
+                    critical_events_per_day,
+                    admissions,
+                    workload['physician'],
+                    role='physician')
+                st.metric("Cognitive Load",
+                          f"{physician_cognitive_load:.0f}%",
+                          help="Physician-specific cognitive load")
                 physician_burnout = st.session_state.simulator.calculate_burnout_risk(
                     workload['physician'],
                     interrupts_per_provider,
@@ -385,6 +394,15 @@ def main():
                 st.metric("Efficiency",
                           f"{app_efficiency:.0%}",
                           help="APP-specific workflow efficiency")
+                app_cognitive_load = st.session_state.simulator.calculate_cognitive_load(
+                    interrupts_per_provider,
+                    critical_events_per_day,
+                    admissions,
+                    workload['app'],
+                    role='app')
+                st.metric("Cognitive Load",
+                          f"{app_cognitive_load:.0f}%",
+                          help="APP-specific cognitive load")
                 app_burnout = st.session_state.simulator.calculate_burnout_risk(
                     workload['app'],
                     interrupts_per_provider,
