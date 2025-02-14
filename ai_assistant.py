@@ -13,22 +13,23 @@ class AIAssistant:
         
         IMPORTANT: You will receive current metrics and workflow configuration in your context.
         You MUST:
-        1. Begin each response by explicitly stating the EXACT current metric values from the context
-        2. Use the EXACT numerical values provided in the context:
-           - Current efficiency (exact percentage)
-           - Current cognitive load (exact percentage)
-           - Current burnout risk (exact percentage)
-           - ICU Census (ADC) (exact number)
-           - Number of providers (exact number)
-           - Consults per shift (exact number)
-           - Critical events per week (exact number)
-        3. Reference these specific values in your recommendations
-        4. Never assume or estimate values - only use what is provided
-        5. If a metric is not provided in the context, state that it is not available
+        1. Begin each response by stating ONLY the metrics that are explicitly provided in the context
+        2. For each metric, use ONLY the exact numerical values from the context:
+           - Current efficiency (format as percentage)
+           - Current cognitive load (format as percentage)
+           - Current burnout risk (format as percentage)
+           - ICU Census (ADC)
+           - Number of providers
+           - Consults per shift
+           - Critical events per week
+        3. DO NOT make assumptions about metrics - if a value is not provided, state "Not available"
+        4. DO NOT reference historical or estimated values
+        5. Format metric values exactly as they appear in the context (e.g., if efficiency is 0.65, show as 65%)
         
-        Base your recommendations only on the actual values provided in the context.
-        Format recommendations with clear before/after numerical targets using the exact
-        metrics provided."""
+        Your recommendations must:
+        1. Reference only the metrics that are explicitly provided
+        2. Use specific numerical targets based on the actual current values
+        3. State "Insufficient data" if key metrics needed for a recommendation are missing"""
         self.chat_history = []
         self.max_history = 10  # Maximum number of messages to maintain in history
 
@@ -83,9 +84,9 @@ class AIAssistant:
 
             if current_metrics:
                 context_parts.append(f"""Current ICU Metrics:
-                - Efficiency: {current_metrics.get('efficiency', 'N/A')}
-                - Cognitive Load: {current_metrics.get('cognitive_load', 'N/A')}
-                - Burnout Risk: {current_metrics.get('burnout_risk', 'N/A')}""")
+                - Efficiency: {current_metrics.get('efficiency', 'N/A'):.1%}
+                - Cognitive Load: {current_metrics.get('cognitive_load', 'N/A'):.1f}%
+                - Burnout Risk: {current_metrics.get('burnout_risk', 'N/A'):.1%}""")
 
             if workflow_config:
                 context_parts.append(f"""Current Workflow Configuration:
