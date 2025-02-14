@@ -48,6 +48,56 @@ def main():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
+        # Generate context-aware suggestions
+        def get_context_suggestions():
+            suggestions = []
+            
+            # Base suggestions
+            suggestions.append("💡 How can I optimize the current workflow?")
+            
+            # Add context-specific suggestions
+            if 'efficiency' in locals() and efficiency < 0.7:
+                suggestions.append("📉 Why is the efficiency low?")
+                suggestions.append("🔄 Suggest ways to improve efficiency")
+            
+            if 'burnout_risk' in locals() and burnout_risk > 0.7:
+                suggestions.append("⚠️ How can I reduce burnout risk?")
+                suggestions.append("👥 Should I adjust staffing levels?")
+            
+            if 'cognitive_load' in locals() and cognitive_load > 80:
+                suggestions.append("🧠 How to reduce cognitive load?")
+            
+            # Limit to 5 suggestions
+            return suggestions[:5]
+
+        # Display quick action suggestions
+        suggestions = get_context_suggestions()
+        for suggestion in suggestions:
+            if st.button(suggestion, key=f"suggest_{suggestion}", use_container_width=True):
+                prompt = suggestion.split(' ', 1)[1]  # Remove emoji prefix
+                st.session_state.chat_messages.append({"role": "user", "content": prompt})
+                
+                # Display user message
+                with st.chat_message("user"):
+                    st.markdown(prompt)
+                
+                # Get and display AI response
+                response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
+                    prompt,
+                    current_metrics=current_metrics if 'current_metrics' in locals() else None,
+                    workflow_config=workflow_config if 'workflow_config' in locals() else None,
+                    active_scenario=st.session_state.get('current_scenario')
+                )
+                
+                if response["status"] == "success":
+                    st.session_state.chat_messages.append({
+                        "role": "assistant",
+                        "content": response["response"]
+                    })
+                    with st.chat_message("assistant"):
+                        st.markdown(response["response"])
+                st.rerun()
+
         # Chat input
         if prompt := st.chat_input("Ask me about workflow optimization..."):
             # Add user message to chat history
