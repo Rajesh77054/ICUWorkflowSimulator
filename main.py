@@ -290,10 +290,9 @@ def main():
         if user_type == "Provider":
             # Provider View
             st.markdown("### Current Shift Overview")
-
-            # Only create metrics if we have valid data
+            
+            # Core Workflow Metrics Section
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
-                # Core Workflow Metrics Section
                 st.markdown(section_header("Core Workflow Metrics"),
                             unsafe_allow_html=True)
 
