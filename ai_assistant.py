@@ -5,7 +5,10 @@ import json
 
 class AIAssistant:
     def __init__(self):
-        self.client = OpenAI(base_url="https://api.x.ai/v1", api_key=os.environ["XAI_API_KEY"])
+        api_key = os.environ.get("XAI_API_KEY")
+        if not api_key:
+            raise ValueError("XAI_API_KEY environment variable is not set")
+        self.client = OpenAI(base_url="https://api.x.ai/v1", api_key=api_key)
         self.system_context = """You are an expert ICU workflow optimization advisor. 
         Your role is to analyze workflow scenarios and provide actionable recommendations 
         for improving efficiency, reducing burnout risk, and optimizing resource allocation 

@@ -18,6 +18,7 @@ from scenario_advisor import ScenarioAdvisor
 
 
 def main():
+    port = int(os.environ.get('PORT', 5000))
     st.set_page_config(page_title="ICU Workflow Dynamics Model",
                        page_icon="🏥",
                        layout="wide")

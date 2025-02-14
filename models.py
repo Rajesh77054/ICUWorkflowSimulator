@@ -130,17 +130,21 @@ class ScenarioResult(Base):
     scenario = relationship("Scenario", back_populates="results")
 
 # Improved database session management
-def get_db():
-    db = SessionLocal()
-    try:
-        # Test the connection with properly declared SQL text
-        db.execute(text("SELECT 1"))
-        yield db
-    except Exception as e:
-        logger.error(f"Database connection error: {e}")
-        raise
-    finally:
-        db.close()
+def get_db(max_retries=3, retry_delay=1):
+    for attempt in range(max_retries):
+        try:
+            db = SessionLocal()
+            db.execute(text("SELECT 1"))
+            yield db
+            return
+        except Exception as e:
+            logger.error(f"Database connection error (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                raise
+        finally:
+            db.close()
 
 def save_workflow_record(db, nursing_q, exam_callbacks, peer_interrupts,
                         providers, admissions, consults, transfers,
