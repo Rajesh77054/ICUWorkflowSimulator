@@ -339,7 +339,7 @@ def main():
 
         if user_type == "Provider":
             # Only create metrics if we have valid data
-            if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
+            if all(x is not None and isinstance(x, (int, float)) for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
                 # Provider View
                 st.markdown("### Current Shift Overview")
 
@@ -467,7 +467,7 @@ def main():
             # Administrator View with new Scenario Management section
             st.markdown("### Administrative Dashboard")
 
-            if all(x is not None for x in [burnout_risk, workload, interrupts_per_provider, critical_events_per_day, cognitive_load, efficiency]):
+            if all(x is not None and isinstance(x, (int, float)) for x in [burnout_risk, workload, interrupts_per_provider, critical_events_per_day, cognitive_load, efficiency]):
                 # Historical Analysis
                 col1, col2 = st.columns(2)
 
