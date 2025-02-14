@@ -467,30 +467,33 @@ def main():
             # Administrator View with new Scenario Management section
             st.markdown("### Administrative Dashboard")
 
-            # Historical Analysis
-            col1, col2 = st.columns(2)
+            if all(x is not None for x in [burnout_risk, workload, interrupts_per_provider, critical_events_per_day, cognitive_load, efficiency]):
+                # Historical Analysis
+                col1, col2 = st.columns(2)
 
-            with col1:
-                st.plotly_chart(create_burnout_gauge(
-                    burnout_risk,
-                    st.session_state.simulator.burnout_thresholds),
-                                use_container_width=True)
+                with col1:
+                    st.plotly_chart(create_burnout_gauge(
+                        burnout_risk,
+                        st.session_state.simulator.burnout_thresholds),
+                                    use_container_width=True)
 
-            with col2:
-                st.plotly_chart(
-                    create_burnout_radar_chart({
-                        "Workload":
-                        workload['combined'],
-                        "Interruptions":
-                        interrupts_per_provider / 50,  # Normalized
-                        "Critical Events":
-                        critical_events_per_day / 5,  # Normalized
-                        "Cognitive Load":
-                        cognitive_load / 100,
-                        "Efficiency Loss":
-                        1 - efficiency
-                    }),
-                    use_container_width=True)
+                with col2:
+                    st.plotly_chart(
+                        create_burnout_radar_chart({
+                            "Workload":
+                            workload['combined'],
+                            "Interruptions":
+                            interrupts_per_provider / 50,  # Normalized
+                            "Critical Events":
+                            critical_events_per_day / 5,  # Normalized
+                            "Cognitive Load":
+                            cognitive_load / 100,
+                            "Efficiency Loss":
+                            1 - efficiency
+                        }),
+                        use_container_width=True)
+            else:
+                st.info("Please configure workflow parameters to view metrics.")
 
             # New Scenario Management Section
             st.markdown("### Scenario Management")
