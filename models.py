@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 # Get database URL from environment variables
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set")
+    logger.error("DATABASE_URL environment variable is not set")
+    DATABASE_URL = "sqlite:///fallback.db"  # Fallback to SQLite
+    logger.info("Using fallback SQLite database")
 
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)

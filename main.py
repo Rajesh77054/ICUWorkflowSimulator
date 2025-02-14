@@ -20,6 +20,9 @@ from scenario_advisor import ScenarioAdvisor
 
 def main():
     port = int(os.environ.get('PORT', 5000))
+    if not 0 <= port <= 65535:
+        st.error(f"Invalid port number {port}, using default 5000")
+        port = 5000
     st.set_page_config(page_title="ICU Workflow Dynamics Model",
                        page_icon="🏥",
                        layout="wide")
