@@ -295,7 +295,13 @@ def main():
         if user_type == "Provider":
             # Provider View - Core Workflow Metrics Section
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
-                st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
+                st.markdown("""
+                    <div class="section-header">
+                        <h3>Core Workflow Metrics</h3>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # Create columns for metrics
                 metrics_cols = st.columns(4)
 
                 with metrics_cols[0]:
