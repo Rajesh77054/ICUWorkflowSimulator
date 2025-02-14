@@ -24,10 +24,24 @@ def main():
     apply_custom_styles()
     st.title("ICU Workflow Dynamics Model")
 
-    # Add Chat Interface - collapsed by default
-    with st.sidebar.expander("💬 AI Assistant", expanded=False):
-        if 'chat_messages' not in st.session_state:
-            st.session_state.chat_messages = []
+    # Initialize sidebar in collapsed state
+    st.markdown(
+        """
+        <script>
+            var elements = window.parent.document.getElementsByClassName("st-emotion-cache-1cypcdb e1nzilvr5");
+            if (elements.length > 0) {
+                elements[0].click();
+            }
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Add Chat Interface - expanded by default
+    with st.sidebar:
+        with st.expander("💬 AI Assistant", expanded=True):
+            if 'chat_messages' not in st.session_state:
+                st.session_state.chat_messages = []
 
         # Display chat messages
         for message in st.session_state.chat_messages:
