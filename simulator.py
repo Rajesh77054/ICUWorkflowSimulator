@@ -297,7 +297,7 @@ class WorkflowSimulator:
         }
 
     def calculate_cognitive_load(self, interruptions, critical_events_per_day,
-                                 admissions, workload):
+                                 admissions, workload, role='physician'):
         """Calculate cognitive load score (0-100)"""
         # If there's no work, cognitive load should be 0
         if workload == 0 and critical_events_per_day == 0 and admissions == 0 and interruptions == 0:
@@ -329,10 +329,15 @@ class WorkflowSimulator:
         # Additional load for high workload
         workload_factor = max(0, (workload - 1.0) * 20)
 
-        # Scale factors to maintain reasonable cognitive load range
-        interrupt_scale = 5  # 5 points per hour of interruptions
-        critical_scale = 10  # 10 points per hour of critical events
-        admission_scale = 8  # 8 points per hour of admissions
+        # Scale factors with role-specific adjustments
+        if role == 'physician':
+            interrupt_scale = 5.5  # Higher interrupt impact for physicians
+            critical_scale = 12  # Higher critical event impact
+            admission_scale = 10  # Higher admission impact
+        else:  # APP
+            interrupt_scale = 4.5  # Lower interrupt impact for APPs
+            critical_scale = 8   # Lower critical event impact
+            admission_scale = 6  # Lower admission impact
 
         total_load = (base_load + (interrupt_factor * interrupt_scale) +
                       (critical_factor * critical_scale) +
