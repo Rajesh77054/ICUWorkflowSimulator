@@ -294,6 +294,7 @@ def main():
             # Core Workflow Metrics Section
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
                 st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
+                metrics_cols = st.columns(4)
                 
                 with metrics_cols[0]:
                     st.metric(
