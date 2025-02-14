@@ -297,28 +297,28 @@ def main():
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
                 st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
                 metrics_cols = st.columns(4)
-                
+
                 with metrics_cols[0]:
                     st.metric(
                         "Interruptions/Provider",
                         f"{interrupts_per_provider:.0f}/shift",
                         help="Direct measure of workflow disruptions per provider")
-                
+
                 with metrics_cols[1]:
                     st.metric(
                         "Time Lost to Interruptions",
                         f"{time_lost:.0f} min",
                         help="Total organizational time lost to interruptions")
-                        
+
                 with metrics_cols[2]:
                     st.metric("Provider Efficiency",
-                            f"{efficiency:.0%}",
-                            help="Current workflow efficiency")
-                          
+                              f"{efficiency:.0%}",
+                              help="Current workflow efficiency")
+
                 with metrics_cols[3]:
                     st.metric("Cognitive Load",
-                            f"{cognitive_load:.0f}%",
-                            help="Mental workload based on current conditions")
+                              f"{cognitive_load:.0f}%",
+                              help="Mental workload based on current conditions")
 
             # Visual Timeline
             st.plotly_chart(create_workload_timeline(
@@ -464,22 +464,29 @@ def main():
                 scenario_name = st.text_input("Scenario Name")
                 scenario_description = st.text_area("Description")
 
+                # Initialize configuration variables with defaults
+                protected_start = 9  # Default to 9 AM
+                protected_duration = 2  # Default to 2 hours
+                physician_ratio = 0.5  # Default to 50/50 split
+                bundling_efficiency = 0.2  # Default to 20% efficiency gain
+
                 st.markdown("##### Intervention Strategies")
                 protected_time = st.checkbox("Enable Protected Time Blocks")
                 if protected_time:
                     protected_start = st.slider("Protected Time Start (Hour)",
-                                                0, 23, 9)
-                    protected_duration = st.slider("Duration (Hours)", 1, 8, 2)
+                                                 0, 23, protected_start)
+                    protected_duration = st.slider("Duration (Hours)", 1, 8,
+                                                    protected_duration)
 
                 staff_distribution = st.checkbox("Optimize Staff Distribution")
                 if staff_distribution:
                     physician_ratio = st.slider("Physician/APP Ratio", 0.0,
-                                                1.0, 0.5)
+                                                1.0, physician_ratio)
 
                 task_bundling = st.checkbox("Enable Task Bundling")
                 if task_bundling:
                     bundling_efficiency = st.slider("Expected Efficiency Gain",
-                                                    0.0, 0.5, 0.2)
+                                                    0.0, 0.5, bundling_efficiency)
 
                 with st.expander("🤖 AI Assistant Recommendations",
                                  expanded=True):

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from simulator import WorkflowSimulator
 
@@ -12,12 +12,11 @@ class ScenarioConfig:
     description: str
     base_config: Dict
     interventions: Dict
-    created_at: datetime = datetime.now()
-    
-    # Intervention parameters
-    protected_time_blocks: List[Dict] = None  # Time blocks where interruptions are reduced
-    staff_distribution: Dict = None  # Provider distribution patterns
-    task_bundling: Dict = None  # Task grouping strategies
+    created_at: datetime = field(default_factory=datetime.now)
+    # Intervention parameters with proper defaults
+    protected_time_blocks: List[Dict] = field(default_factory=list)
+    staff_distribution: Dict = field(default_factory=dict)
+    task_bundling: Dict = field(default_factory=dict)
     coverage_model: str = "standard"  # Type of coverage model
 
 class ScenarioManager:
