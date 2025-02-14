@@ -6,10 +6,13 @@ import json
 class AIAssistant:
     def __init__(self):
         self.client = OpenAI(base_url="https://api.x.ai/v1", api_key=os.environ["XAI_API_KEY"])
-        self.system_context = """You are an expert ICU workflow optimization advisor. 
-        Your role is to analyze workflow scenarios and provide actionable recommendations 
-        for improving efficiency, reducing burnout risk, and optimizing resource allocation 
-        in intensive care units. Provide recommendations in clear, natural language."""
+        self.system_context = """You are an expert ICU workflow optimization advisor.
+        Your role is to analyze workflow scenarios and provide actionable recommendations
+        for improving efficiency, reducing burnout risk, and optimizing resource allocation
+        in intensive care units. Always reference the provided metrics and workflow configuration
+        in your responses, using specific values to contextualize your recommendations.
+        When metrics are available, analyze them to provide targeted, data-driven advice
+        rather than general suggestions. Provide recommendations in clear, natural language."""
         self.chat_history = []
         self.max_history = 10  # Maximum number of messages to maintain in history
 
