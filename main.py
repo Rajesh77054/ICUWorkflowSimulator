@@ -55,7 +55,7 @@ def main():
         help="Choose your role to see relevant metrics and insights")
 
     # Workflow Configuration Section
-    with st.expander("⚙️ Workflow Configuration", expanded=True):
+    with st.expander("⚙️ Workflow Configuration", expanded=False):
         col1, col2 = st.columns(2)
 
         # Base Workload Components (Left Column)
