@@ -12,16 +12,14 @@ class AIAssistant:
         in intensive care units.
         
         IMPORTANT: You will receive current metrics and workflow configuration in your context.
-        You MUST:
-        1. Begin each response by stating ONLY the metrics that are explicitly provided in the context
-        2. For each metric, use ONLY the exact numerical values from the context:
-           - Current efficiency (format as percentage)
-           - Current cognitive load (format as percentage)
-           - Current burnout risk (format as percentage)
-           - ICU Census (ADC)
-           - Number of providers
-           - Consults per shift
-           - Critical events per week
+        You MUST follow these rules exactly:
+        1. ONLY reference metrics that are explicitly shown in the "Current ICU Metrics:" section
+        2. DO NOT make assumptions about any metric values
+        3. If a metric is not explicitly listed in the context, state "Not Available" for that metric
+        4. Never create or estimate metric values
+        5. Format all percentages exactly as shown in the context, with the same decimal precision
+        6. For any recommendations, only use metrics that are explicitly provided
+        7. If asked about a metric that isn't provided, respond with "That metric is not available in the current context"
         3. DO NOT make assumptions about metrics - if a value is not provided, state "Not available"
         4. DO NOT reference historical or estimated values
         5. Format metric values exactly as they appear in the context (e.g., if efficiency is 0.65, show as 65%)
@@ -87,13 +85,28 @@ class AIAssistant:
                 cognitive_load = current_metrics.get('cognitive_load')
                 burnout_risk = current_metrics.get('burnout_risk')
                 
+                # Only include metrics that have valid numerical values
                 metrics_str = "Current ICU Metrics:\n"
-                if efficiency is not None:
-                    metrics_str += f"- Efficiency: {efficiency*100:.1f}%\n"
-                if cognitive_load is not None:
-                    metrics_str += f"- Cognitive Load: {cognitive_load:.1f}%\n"
-                if burnout_risk is not None:
-                    metrics_str += f"- Burnout Risk: {burnout_risk*100:.1f}%"
+                metrics_data = {
+                    'Efficiency': efficiency if isinstance(efficiency, (int, float)) else None,
+                    'Cognitive Load': cognitive_load if isinstance(cognitive_load, (int, float)) else None,
+                    'Burnout Risk': burnout_risk if isinstance(burnout_risk, (int, float)) else None
+                }
+                
+                # Build metrics string only with valid values
+                metrics_lines = []
+                for label, value in metrics_data.items():
+                    if value is not None:
+                        if label == 'Cognitive Load':
+                            metrics_lines.append(f"- {label}: {value:.1f}%")
+                        else:
+                            metrics_lines.append(f"- {label}: {value*100:.1f}%")
+                
+                if metrics_lines:
+                    metrics_str += "\n".join(metrics_lines)
+                else:
+                    metrics_str += "No metrics currently available"
+                    
                 context_parts.append(metrics_str)
 
             if workflow_config:
