@@ -338,9 +338,16 @@ def main():
             workload['combined'])
 
         if user_type == "Provider":
-            # Provider View - Core Workflow Metrics Section
+            # Only create metrics if we have valid data
             if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
-                st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
+                # Provider View
+                st.markdown("### Current Shift Overview")
+
+                # Core Workflow Metrics Section
+                st.markdown(section_header("Core Workflow Metrics"),
+                            unsafe_allow_html=True)
+
+                # Create columns for metrics
                 metrics_cols = st.columns(4)
 
                 with metrics_cols[0]:
@@ -365,94 +372,96 @@ def main():
                               f"{cognitive_load:.0f}%",
                               help="Mental workload based on current conditions")
 
-            else:
-                return
-
-            # Visual Timeline
-            st.plotly_chart(create_workload_timeline(
-                workload['combined'], providers, critical_events_per_day,
-                admissions, st.session_state.simulator),
-                            use_container_width=True)
-
-            # Time Distribution
-            st.markdown("### Provider Time Allocation")
-            st.caption(
-                "Showing separate allocations for Physician and APP roles")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                # Physician time allocation
-                st.plotly_chart(create_time_allocation_pie(time_lost,
-                                                           total_consult_time,
-                                                           providers,
-                                                           role='physician'),
-                                use_container_width=True)
-            with col2:
-                # APP time allocation
-                st.plotly_chart(create_time_allocation_pie(time_lost,
-                                                           total_consult_time,
-                                                           providers,
-                                                           role='app'),
+                # Visual Timeline
+                st.plotly_chart(create_workload_timeline(
+                    workload['combined'], providers, critical_events_per_day,
+                    admissions, st.session_state.simulator),
                                 use_container_width=True)
 
-            # Calculate role-specific metrics
-            physician_efficiency = st.session_state.simulator.simulate_provider_efficiency(
-                nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
-                providers,
-                workload['physician'],
-                critical_events_per_day,
-                admissions,
-                adc,
-                role='physician')
+                # Time Distribution
+                st.markdown("### Provider Time Allocation")
+                st.caption(
+                    "Showing separate allocations for Physician and APP roles")
 
-            app_efficiency = st.session_state.simulator.simulate_provider_efficiency(
-                nursing_q + exam_callbacks +
-                peer_interrupts,  # APPs don't handle transfer calls
-                providers,
-                workload['app'],
-                critical_events_per_day,
-                admissions,
-                adc,
-                role='app')
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Physician time allocation
+                    st.plotly_chart(create_time_allocation_pie(time_lost,
+                                                               total_consult_time,
+                                                               providers,
+                                                               role='physician'),
+                                    use_container_width=True)
+                with col2:
+                    # APP time allocation
+                    st.plotly_chart(create_time_allocation_pie(time_lost,
+                                                               total_consult_time,
+                                                               providers,
+                                                               role='app'),
+                                    use_container_width=True)
 
-            # Display role-specific metrics
-            st.markdown("### Provider-Specific Metrics")
-            metrics_cols = st.columns(2)
-
-            with metrics_cols[0]:
-                st.markdown("#### Physician Metrics")
-                st.metric("Efficiency",
-                          f"{physician_efficiency:.0%}",
-                          help="Physician-specific workflow efficiency")
-                physician_burnout = st.session_state.simulator.calculate_burnout_risk(
+                # Calculate role-specific metrics
+                physician_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                    nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
+                    providers,
                     workload['physician'],
-                    interrupts_per_provider,
                     critical_events_per_day,
+                    admissions,
+                    adc,
                     role='physician')
-                st.metric("Burnout Risk",
-                          f"{physician_burnout:.0%}",
-                          help="Physician-specific burnout risk")
 
-            with metrics_cols[1]:
-                st.markdown("#### APP Metrics")
-                st.metric("Efficiency",
-                          f"{app_efficiency:.0%}",
-                          help="APP-specific workflow efficiency")
-                app_burnout = st.session_state.simulator.calculate_burnout_risk(
+                app_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                    nursing_q + exam_callbacks +
+                    peer_interrupts,  # APPs don't handle transfer calls
+                    providers,
                     workload['app'],
-                    interrupts_per_provider,
                     critical_events_per_day,
+                    admissions,
+                    adc,
                     role='app')
-                st.metric("Burnout Risk",
-                          f"{app_burnout:.0%}",
-                          help="APP-specific burnout risk")
 
-            # Recommendations for Providers
-            with st.expander("📋 Recommendations"):
-                recommendations = format_recommendations(
-                    efficiency, cognitive_load, burnout_risk, time_lost)
-                for rec in recommendations:
-                    st.markdown(f"• {rec}")
+                # Display role-specific metrics
+                st.markdown("### Provider-Specific Metrics")
+                metrics_cols = st.columns(2)
+
+                with metrics_cols[0]:
+                    st.markdown("#### Physician Metrics")
+                    st.metric("Efficiency",
+                              f"{physician_efficiency:.0%}",
+                              help="Physician-specific workflow efficiency")
+                    physician_burnout = st.session_state.simulator.calculate_burnout_risk(
+                        workload['physician'],
+                        interrupts_per_provider,
+                        critical_events_per_day,
+                        role='physician')
+                    st.metric("Burnout Risk",
+                              f"{physician_burnout:.0%}",
+                              help="Physician-specific burnout risk")
+
+                with metrics_cols[1]:
+                    st.markdown("#### APP Metrics")
+                    st.metric("Efficiency",
+                              f"{app_efficiency:.0%}",
+                              help="APP-specific workflow efficiency")
+                    app_burnout = st.session_state.simulator.calculate_burnout_risk(
+                        workload['app'],
+                        interrupts_per_provider,
+                        critical_events_per_day,
+                        role='app')
+                    st.metric("Burnout Risk",
+                              f"{app_burnout:.0%}",
+                              help="APP-specific burnout risk")
+
+                # Recommendations for Providers
+                with st.expander("📋 Recommendations"):
+                    recommendations = format_recommendations(
+                        efficiency, cognitive_load, burnout_risk, time_lost)
+                    for rec in recommendations:
+                        st.markdown(f"• {rec}")
+
+            else:
+                st.markdown("### Current Shift Overview")
+                st.info("Not enough data to generate metrics. Please adjust settings.")
+
 
         else:
             # Administrator View with new Scenario Management section
