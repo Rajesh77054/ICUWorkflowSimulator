@@ -16,6 +16,7 @@ from models import save_scenario, save_scenario_result, get_scenarios, get_scena
 import plotly.graph_objects as go
 from scenario_advisor import ScenarioAdvisor
 
+
 def main():
     st.set_page_config(page_title="ICU Workflow Dynamics Model",
                        page_icon="🏥",
@@ -23,136 +24,6 @@ def main():
 
     apply_custom_styles()
     st.title("ICU Workflow Dynamics Model")
-
-    # Initialize sidebar in collapsed state
-    st.markdown(
-        """
-        <script>
-            var elements = window.parent.document.getElementsByClassName("st-emotion-cache-1cypcdb e1nzilvr5");
-            if (elements.length > 0) {
-                elements[0].click();
-            }
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Add Chat Interface - expanded by default
-    with st.sidebar:
-        with st.expander("💬 AI Assistant", expanded=True):
-            if 'chat_messages' not in st.session_state:
-                st.session_state.chat_messages = []
-
-        # Display chat messages
-        for message in st.session_state.chat_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        # Generate context-aware suggestions
-        def get_context_suggestions():
-            suggestions = []
-            
-            # Base suggestions
-            suggestions.append("💡 How can I optimize the current workflow?")
-            
-            # Add context-specific suggestions
-            if 'efficiency' in locals() and efficiency < 0.7:
-                suggestions.append("📉 Why is the efficiency low?")
-                suggestions.append("🔄 Suggest ways to improve efficiency")
-            
-            if 'burnout_risk' in locals() and burnout_risk > 0.7:
-                suggestions.append("⚠️ How can I reduce burnout risk?")
-                suggestions.append("👥 Should I adjust staffing levels?")
-            
-            if 'cognitive_load' in locals() and cognitive_load > 80:
-                suggestions.append("🧠 How to reduce cognitive load?")
-            
-            # Limit to 5 suggestions
-            return suggestions[:5]
-
-        # Display quick action suggestions
-        suggestions = get_context_suggestions()
-        for suggestion in suggestions:
-            if st.button(suggestion, key=f"suggest_{suggestion}", use_container_width=True):
-                prompt = suggestion.split(' ', 1)[1]  # Remove emoji prefix
-                st.session_state.chat_messages.append({"role": "user", "content": prompt})
-                
-                # Display user message
-                with st.chat_message("user"):
-                    st.markdown(prompt)
-                
-                # Get and display AI response
-                response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
-                    prompt,
-                    current_metrics=current_metrics if 'current_metrics' in locals() else None,
-                    workflow_config=workflow_config if 'workflow_config' in locals() else None,
-                    active_scenario=st.session_state.get('current_scenario')
-                )
-                
-                if response["status"] == "success":
-                    st.session_state.chat_messages.append({
-                        "role": "assistant",
-                        "content": response["response"]
-                    })
-                    with st.chat_message("assistant"):
-                        st.markdown(response["response"])
-                st.rerun()
-
-        # Chat input
-        if prompt := st.chat_input("Ask me about workflow optimization..."):
-            # Add user message to chat history
-            st.session_state.chat_messages.append({"role": "user", "content": prompt})
-
-            # Display user message
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            # Get AI response with enhanced context
-            current_metrics = {
-                'efficiency': efficiency if 'efficiency' in locals() else None,
-                'cognitive_load': cognitive_load if 'cognitive_load' in locals() else None,
-                'burnout_risk': burnout_risk if 'burnout_risk' in locals() else None
-            }
-
-            # Gather current workflow configuration
-            workflow_config = {
-                'adc': adc if 'adc' in locals() else None,
-                'providers': providers if 'providers' in locals() else None,
-                'consults': consults if 'consults' in locals() else None,
-                'critical_events': critical_events if 'critical_events' in locals() else None
-            }
-
-            # Get active scenario if available
-            active_scenario = None
-            if 'current_scenario' in st.session_state:
-                active_scenario = st.session_state.current_scenario
-
-            response = st.session_state.scenario_advisor.ai_assistant.chat_with_user(
-                prompt, 
-                current_metrics=current_metrics,
-                workflow_config=workflow_config,
-                active_scenario=active_scenario
-            )
-
-            # Add AI response to chat history
-            if response["status"] == "success":
-                st.session_state.chat_messages.append({
-                    "role": "assistant",
-                    "content": response["response"]
-                })
-
-                # Display AI response
-                with st.chat_message("assistant"):
-                    st.markdown(response["response"])
-            else:
-                with st.chat_message("assistant"):
-                    st.error("I apologize, but I encountered an error. Please try again.")
-
-        # Clear chat history button
-        if st.button("Clear Chat History"):
-            st.session_state.chat_messages = []
-            st.session_state.scenario_advisor.ai_assistant.clear_chat_history()
-            st.rerun()
 
     # Initialize simulator and other components in session state
     if 'simulator' not in st.session_state:
@@ -184,7 +55,7 @@ def main():
         help="Choose your role to see relevant metrics and insights")
 
     # Workflow Configuration Section
-    with st.expander("⚙️ Workflow Configuration", expanded=False):
+    with st.expander("⚙️ Workflow Configuration", expanded=True):
         col1, col2 = st.columns(2)
 
         # Base Workload Components (Left Column)
@@ -417,163 +288,147 @@ def main():
             workload['combined'])
 
         if user_type == "Provider":
-            # Only create metrics if we have valid data
-            if all(x is not None and isinstance(x, (int, float)) for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
-                # Provider View
-                st.markdown("### Current Shift Overview")
-
-                # Core Workflow Metrics Section
+            # Provider View - Core Workflow Metrics Section
+            if all(x is not None for x in [interrupts_per_provider, time_lost, efficiency, cognitive_load]):
                 st.markdown(section_header("Core Workflow Metrics"), unsafe_allow_html=True)
-
-                # Create columns for metrics
                 metrics_cols = st.columns(4)
-
+                
                 with metrics_cols[0]:
                     st.metric(
                         "Interruptions/Provider",
                         f"{interrupts_per_provider:.0f}/shift",
                         help="Direct measure of workflow disruptions per provider")
-
+                
                 with metrics_cols[1]:
                     st.metric(
-                        "Provider Efficiency",
-                        f"{efficiency:.0%}",
-                        help="Current workflow efficiency")
-
+                        "Time Lost to Interruptions",
+                        f"{time_lost:.0f} min",
+                        help="Total organizational time lost to interruptions")
+                        
                 with metrics_cols[2]:
-                    st.metric(
-                        "Cognitive Load",
-                        f"{cognitive_load:.0f}%",
-                        help="Mental workload based on current conditions")
-
+                    st.metric("Provider Efficiency",
+                            f"{efficiency:.0%}",
+                            help="Current workflow efficiency")
+                          
                 with metrics_cols[3]:
-                    st.metric(
-                        "Burnout Risk",
-                        f"{burnout_risk:.0%}",
-                        help="Risk of provider burnout based on current conditions")
+                    st.metric("Cognitive Load",
+                            f"{cognitive_load:.0f}%",
+                            help="Mental workload based on current conditions")
 
-                # Visual Timeline
-                st.plotly_chart(create_workload_timeline(
-                    workload['combined'], providers, critical_events_per_day,
-                    admissions, st.session_state.simulator),
+            # Visual Timeline
+            st.plotly_chart(create_workload_timeline(
+                workload['combined'], providers, critical_events_per_day,
+                admissions, st.session_state.simulator),
+                            use_container_width=True)
+
+            # Time Distribution
+            st.markdown("### Provider Time Allocation")
+            st.caption(
+                "Showing separate allocations for Physician and APP roles")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                # Physician time allocation
+                st.plotly_chart(create_time_allocation_pie(time_lost,
+                                                           total_consult_time,
+                                                           providers,
+                                                           role='physician'),
+                                use_container_width=True)
+            with col2:
+                # APP time allocation
+                st.plotly_chart(create_time_allocation_pie(time_lost,
+                                                           total_consult_time,
+                                                           providers,
+                                                           role='app'),
                                 use_container_width=True)
 
-                # Time Distribution
-                st.markdown("### Provider Time Allocation")
-                st.caption(
-                    "Showing separate allocations for Physician and APP roles")
+            # Calculate role-specific metrics
+            physician_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
+                providers,
+                workload['physician'],
+                critical_events_per_day,
+                admissions,
+                adc,
+                role='physician')
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    # Physician time allocation
-                    st.plotly_chart(create_time_allocation_pie(time_lost,
-                                                               total_consult_time,
-                                                               providers,
-                                                               role='physician'),
-                                    use_container_width=True)
-                with col2:
-                    # APP time allocation
-                    st.plotly_chart(create_time_allocation_pie(time_lost,
-                                                               total_consult_time,
-                                                               providers,
-                                                               role='app'),
-                                    use_container_width=True)
+            app_efficiency = st.session_state.simulator.simulate_provider_efficiency(
+                nursing_q + exam_callbacks +
+                peer_interrupts,  # APPs don't handle transfer calls
+                providers,
+                workload['app'],
+                critical_events_per_day,
+                admissions,
+                adc,
+                role='app')
 
-                # Calculate role-specific metrics
-                physician_efficiency = st.session_state.simulator.simulate_provider_efficiency(
-                    nursing_q + exam_callbacks + peer_interrupts + transfer_calls,
-                    providers,
+            # Display role-specific metrics
+            st.markdown("### Provider-Specific Metrics")
+            metrics_cols = st.columns(2)
+
+            with metrics_cols[0]:
+                st.markdown("#### Physician Metrics")
+                st.metric("Efficiency",
+                          f"{physician_efficiency:.0%}",
+                          help="Physician-specific workflow efficiency")
+                physician_burnout = st.session_state.simulator.calculate_burnout_risk(
                     workload['physician'],
+                    interrupts_per_provider,
                     critical_events_per_day,
-                    admissions,
-                    adc,
                     role='physician')
+                st.metric("Burnout Risk",
+                          f"{physician_burnout:.0%}",
+                          help="Physician-specific burnout risk")
 
-                app_efficiency = st.session_state.simulator.simulate_provider_efficiency(
-                    nursing_q + exam_callbacks +
-                    peer_interrupts,  # APPs don't handle transfer calls
-                    providers,
+            with metrics_cols[1]:
+                st.markdown("#### APP Metrics")
+                st.metric("Efficiency",
+                          f"{app_efficiency:.0%}",
+                          help="APP-specific workflow efficiency")
+                app_burnout = st.session_state.simulator.calculate_burnout_risk(
                     workload['app'],
+                    interrupts_per_provider,
                     critical_events_per_day,
-                    admissions,
-                    adc,
                     role='app')
+                st.metric("Burnout Risk",
+                          f"{app_burnout:.0%}",
+                          help="APP-specific burnout risk")
 
-                # Display role-specific metrics
-                st.markdown("### Provider-Specific Metrics")
-                metrics_cols = st.columns(2)
-
-                with metrics_cols[0]:
-                    st.markdown("#### Physician Metrics")
-                    st.metric("Efficiency",
-                              f"{physician_efficiency:.0%}",
-                              help="Physician-specific workflow efficiency")
-                    physician_burnout = st.session_state.simulator.calculate_burnout_risk(
-                        workload['physician'],
-                        interrupts_per_provider,
-                        critical_events_per_day,
-                        role='physician')
-                    st.metric("Burnout Risk",
-                              f"{physician_burnout:.0%}",
-                              help="Physician-specific burnout risk")
-
-                with metrics_cols[1]:
-                    st.markdown("#### APP Metrics")
-                    st.metric("Efficiency",
-                              f"{app_efficiency:.0%}",
-                              help="APP-specific workflow efficiency")
-                    app_burnout = st.session_state.simulator.calculate_burnout_risk(
-                        workload['app'],
-                        interrupts_per_provider,
-                        critical_events_per_day,
-                        role='app')
-                    st.metric("Burnout Risk",
-                              f"{app_burnout:.0%}",
-                              help="APP-specific burnout risk")
-
-                # Recommendations for Providers
-                with st.expander("📋 Recommendations"):
-                    recommendations = format_recommendations(
-                        efficiency, cognitive_load, burnout_risk, time_lost)
-                    for rec in recommendations:
-                        st.markdown(f"• {rec}")
-
-            else:
-                st.markdown("### Current Shift Overview")
-                st.info("Not enough data to generate metrics. Please adjust settings.")
-
+            # Recommendations for Providers
+            with st.expander("📋 Recommendations"):
+                recommendations = format_recommendations(
+                    efficiency, cognitive_load, burnout_risk, time_lost)
+                for rec in recommendations:
+                    st.markdown(f"• {rec}")
 
         else:
             # Administrator View with new Scenario Management section
             st.markdown("### Administrative Dashboard")
 
-            if all(x is not None and isinstance(x, (int, float)) for x in [burnout_risk, workload, interrupts_per_provider, critical_events_per_day, cognitive_load, efficiency]):
-                # Historical Analysis
-                col1, col2 = st.columns(2)
+            # Historical Analysis
+            col1, col2 = st.columns(2)
 
-                with col1:
-                    st.plotly_chart(create_burnout_gauge(
-                        burnout_risk,
-                        st.session_state.simulator.burnout_thresholds),
-                                    use_container_width=True)
+            with col1:
+                st.plotly_chart(create_burnout_gauge(
+                    burnout_risk,
+                    st.session_state.simulator.burnout_thresholds),
+                                use_container_width=True)
 
-                with col2:
-                    st.plotly_chart(
-                        create_burnout_radar_chart({
-                            "Workload":
-                            workload['combined'],
-                            "Interruptions":
-                            interrupts_per_provider / 50,  # Normalized
-                            "Critical Events":
-                            critical_events_per_day / 5,  # Normalized
-                            "Cognitive Load":
-                            cognitive_load / 100,
-                            "Efficiency Loss":
-                            1 - efficiency
-                        }),
-                        use_container_width=True)
-            else:
-                st.info("Please configure workflow parameters to view metrics.")
+            with col2:
+                st.plotly_chart(
+                    create_burnout_radar_chart({
+                        "Workload":
+                        workload['combined'],
+                        "Interruptions":
+                        interrupts_per_provider / 50,  # Normalized
+                        "Critical Events":
+                        critical_events_per_day / 5,  # Normalized
+                        "Cognitive Load":
+                        cognitive_load / 100,
+                        "Efficiency Loss":
+                        1 - efficiency
+                    }),
+                    use_container_width=True)
 
             # New Scenario Management Section
             st.markdown("### Scenario Management")
@@ -969,8 +824,8 @@ def main():
                         file_name=f'workflow_analysis_{current_time}.csv',
                         mime='text/csv')
 
-    except Exception as e:        st.error(f"An error occurred: {str(e)}")
-
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 
 
 if __name__ == "__main__":

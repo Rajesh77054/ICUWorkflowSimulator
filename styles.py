@@ -26,9 +26,9 @@ def apply_custom_styles():
     """, unsafe_allow_html=True)
 
 def section_header(title, description=""):
-    return f"""
+    st.markdown(f"""
         <div class="section-header">
-            <h3 style="margin: 0; padding: 10px 0;">{title}</h3>
-            <p style="color: #666; margin: 0;">{description}</p>
+            <h3>{title}</h3>
+            <p style="color: #666;">{description}</p>
         </div>
-    """
+    """, unsafe_allow_html=True)
